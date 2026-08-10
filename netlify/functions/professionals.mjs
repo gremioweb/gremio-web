@@ -1,8 +1,23 @@
 import { getStore } from "@netlify/blobs";
+import { createHash } from "node:crypto";
 
 // Normaliza un teléfono español para comparar (quita espacios, +34, etc.)
 function waNumber(v) {
   return String(v || "").replace(/\D/g, "").replace(/^34/, "");
+}
+
+// La contraseña nunca se guarda tal cual: se guarda su hash (huella
+// irreversible). Así, aunque alguien accediera a la base de datos, no vería
+// las contraseñas de nadie.
+function hashPassword(pw) {
+  return createHash("sha256").update(String(pw)).digest("hex");
+}
+
+// Quita el hash de la contraseña antes de devolver datos públicamente
+// (listado del buscador, comprobación de estado, etc.)
+function publicShape(p) {
+  const { passwordHash, ...rest } = p;
+  return rest;
 }
 
 async function readAll(store) {
@@ -25,16 +40,16 @@ export default async (req) => {
   const store = getStore("professionals");
   const url = new URL(req.url);
 
-  // --- GET: listado completo (usado tanto para el buscador público como
-  // para que un profesional encuentre su propio anuncio por teléfono) ---
+  // --- GET: listado público (buscador) o un anuncio suelto por id, SIN la
+  // contraseña — esto nunca sirve para gestionar el anuncio ---
   if (req.method === "GET") {
     const all = await readAll(store);
     const id = url.searchParams.get("id");
     if (id) {
       const one = all.find((p) => p.id === id);
-      return one ? jsonResponse(one) : jsonResponse({ error: "No encontrado" }, 404);
+      return one ? jsonResponse(publicShape(one)) : jsonResponse({ error: "No encontrado" }, 404);
     }
-    return jsonResponse(all);
+    return jsonResponse(all.map(publicShape));
   }
 
   if (req.method !== "POST") {
@@ -52,13 +67,16 @@ export default async (req) => {
 
   // --- Crear un anuncio nuevo (queda "pending" hasta que Stripe confirme el pago) ---
   if (body.action === "create") {
-    const required = ["name", "phone", "email", "category", "description", "price", "zone"];
+    const required = ["name", "phone", "email", "password", "category", "description", "price", "zone"];
     for (const field of required) {
       if (!body[field]) return jsonResponse({ error: `Falta el campo ${field}` }, 400);
     }
     const email = String(body.email).trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return jsonResponse({ error: "El email no tiene un formato válido" }, 400);
+    }
+    if (String(body.password).length < 6) {
+      return jsonResponse({ error: "La contraseña debe tener al menos 6 caracteres" }, 400);
     }
 
     // Memoria propia: si este email ya llegó a activar una prueba gratuita
@@ -77,6 +95,7 @@ export default async (req) => {
     const id = `pro_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const entry = {
       id,
+      passwordHash: hashPassword(body.password),
       name: String(body.name).slice(0, 120),
       phone: String(body.phone).slice(0, 20),
       email,
@@ -95,18 +114,27 @@ export default async (req) => {
     };
     all.push(entry);
     await writeAll(store, all);
-    return jsonResponse(entry);
+    return jsonResponse(publicShape(entry));
   }
 
-  // --- Cancelar / reactivar (requiere el teléfono con el que se publicó, como ya
-  // pedía el panel antes de este cambio; no es una autenticación fuerte, pero es
-  // el mismo nivel de protección que ya tenía la web) ---
+  // --- Buscar "mi panel": requiere teléfono Y contraseña juntos ---
+  if (body.action === "lookup") {
+    const phone = waNumber(body.phone);
+    const password = String(body.password || "");
+    if (!phone || !password) return jsonResponse({ error: "Faltan datos" }, 400);
+    const hash = hashPassword(password);
+    const mine = all.filter((p) => waNumber(p.phone) === phone && p.passwordHash === hash);
+    return jsonResponse(mine.map(publicShape));
+  }
+
+  // --- Cancelar / reactivar: requiere la contraseña exacta de ESE anuncio ---
   if (body.action === "cancel") {
-    const idx = all.findIndex((p) => p.id === body.id && waNumber(p.phone) === waNumber(body.phone));
-    if (idx === -1) return jsonResponse({ error: "No encontrado o teléfono incorrecto" }, 404);
+    const hash = hashPassword(body.password || "");
+    const idx = all.findIndex((p) => p.id === body.id && p.passwordHash === hash);
+    if (idx === -1) return jsonResponse({ error: "No encontrado o contraseña incorrecta" }, 404);
     all[idx].canceled = body.canceled !== false;
     await writeAll(store, all);
-    return jsonResponse(all[idx]);
+    return jsonResponse(publicShape(all[idx]));
   }
 
   return jsonResponse({ error: "Acción no reconocida" }, 400);
