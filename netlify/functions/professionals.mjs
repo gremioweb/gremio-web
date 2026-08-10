@@ -1,5 +1,8 @@
 import { getStore } from "@netlify/blobs";
 import { createHash } from "node:crypto";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Normaliza un teléfono español para comparar (quita espacios, +34, etc.)
 function waNumber(v) {
@@ -131,12 +134,33 @@ export default async (req) => {
     return jsonResponse(mine.map(publicShape));
   }
 
-  // --- Cancelar / reactivar: requiere la contraseña exacta de ESE anuncio ---
+  // --- Cancelar de verdad la suscripción: requiere la contraseña exacta de
+  // ESE anuncio. Cancela también el cobro real en Stripe (no solo oculta el
+  // anuncio) y el anuncio vuelve a quedar "pendiente de pago" — para volver
+  // a publicarse hace falta pagar de nuevo, no hay reactivación gratis. ---
   if (body.action === "cancel") {
     const hash = hashPassword(body.password || "");
     const idx = all.findIndex((p) => p.id === body.id && p.passwordHash === hash);
     if (idx === -1) return jsonResponse({ error: "No encontrado o contraseña incorrecta" }, 404);
-    all[idx].canceled = body.canceled !== false;
+
+    if (all[idx].stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.cancel(all[idx].stripeSubscriptionId);
+      } catch (err) {
+        // Si Stripe dice que ya estaba cancelada (o no existe), no es un
+        // error real para el usuario — seguimos y lo marcamos igualmente.
+        // Cualquier otro fallo sí se informa, para no dar una falsa
+        // sensación de "cancelado" si el cobro real sigue activo.
+        if (err?.code !== "resource_missing") {
+          return jsonResponse({ error: "No se pudo cancelar la suscripción en Stripe. Inténtalo de nuevo en unos segundos." }, 502);
+        }
+      }
+    }
+
+    all[idx].status = "pending";
+    all[idx].canceled = false;
+    all[idx].stripeSubscriptionId = null;
+    all[idx].nextChargeAt = null;
     await writeAll(store, all);
     return jsonResponse(publicShape(all[idx]));
   }
