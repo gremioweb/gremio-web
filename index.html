@@ -1979,26 +1979,19 @@ function PanelView({ onLookup, onToggleCancel, onRefresh }) {
               </div>
               <div className="flex items-center gap-2">
                 <TrialTag pro={pro} />
-                {pro.status === "active" && (
-                  pro.canceled ? (
-                    <button
-                      disabled={busyId === pro.id}
-                      onClick={() => handleToggle(pro, false)}
-                      className="text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wide disabled:opacity-50"
-                      style={{ background: "rgba(45,212,191,0.16)", color: YELLOW }}
-                    >
-                      Reactivar
-                    </button>
-                  ) : (
-                    <button
-                      disabled={busyId === pro.id}
-                      onClick={() => handleToggle(pro, true)}
-                      className="text-[11px] font-semibold px-3 py-1.5 rounded-full uppercase tracking-wide flex items-center gap-1 disabled:opacity-50"
-                      style={{ color: MUTED, border: `1px solid ${BORDER}` }}
-                    >
-                      <Ban size={11} /> Cancelar
-                    </button>
-                  )
+                {pro.status === "active" && !pro.canceled && (
+                  <button
+                    disabled={busyId === pro.id}
+                    onClick={() => {
+                      if (window.confirm("¿Seguro que quieres cancelar? Se cancelará el cobro real en Stripe y tu anuncio dejará de publicarse. Para volver a activarlo tendrás que pagar de nuevo.")) {
+                        handleToggle(pro, true);
+                      }
+                    }}
+                    className="text-[11px] font-semibold px-3 py-1.5 rounded-full uppercase tracking-wide flex items-center gap-1 disabled:opacity-50"
+                    style={{ color: MUTED, border: `1px solid ${BORDER}` }}
+                  >
+                    <Ban size={11} /> Cancelar suscripción
+                  </button>
                 )}
               </div>
             </div>
