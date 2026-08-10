@@ -1,0 +1,9 @@
+{
+  "name": "gremio-web",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^10.0.0",
+    "stripe": "^22.0.0"
+  }
+}
