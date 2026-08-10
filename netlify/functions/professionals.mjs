@@ -52,22 +52,41 @@ export default async (req) => {
 
   // --- Crear un anuncio nuevo (queda "pending" hasta que Stripe confirme el pago) ---
   if (body.action === "create") {
-    const required = ["name", "phone", "category", "description", "price", "zone"];
+    const required = ["name", "phone", "email", "category", "description", "price", "zone"];
     for (const field of required) {
       if (!body[field]) return jsonResponse({ error: `Falta el campo ${field}` }, 400);
     }
+    const email = String(body.email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return jsonResponse({ error: "El email no tiene un formato válido" }, 400);
+    }
+
+    // Memoria propia: si este email ya llegó a activar una prueba gratuita
+    // antes (o ya se le denegó una reutilización), no se le deja ni siquiera
+    // llegar a Stripe con un anuncio nuevo.
+    const alreadyUsedTrial = all.some(
+      (p) => p.email && p.email.toLowerCase() === email && (p.status === "active" || p.status === "trial_denied")
+    );
+    if (alreadyUsedTrial) {
+      return jsonResponse(
+        { error: "Este email ya ha usado la prueba gratuita antes. Contacta con nosotros para activarlo con pago inmediato." },
+        409
+      );
+    }
+
     const id = `pro_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const entry = {
       id,
       name: String(body.name).slice(0, 120),
       phone: String(body.phone).slice(0, 20),
+      email,
       category: String(body.category).slice(0, 60),
       description: String(body.description).slice(0, 800),
       price: String(body.price).slice(0, 60),
       zone: String(body.zone).slice(0, 120),
       logo: typeof body.logo === "string" ? body.logo : null,
       photos: Array.isArray(body.photos) ? body.photos.slice(0, 4) : [],
-      status: "pending", // "pending" | "active" — solo el webhook de Stripe pasa esto a "active"
+      status: "pending", // "pending" | "active" | "trial_denied" — solo el webhook de Stripe pasa esto a "active"
       canceled: false,
       stripeSubscriptionId: null,
       nextChargeAt: null,
