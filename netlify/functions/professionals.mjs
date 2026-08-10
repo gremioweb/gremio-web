@@ -103,6 +103,7 @@ export default async (req) => {
       description: String(body.description).slice(0, 800),
       price: String(body.price).slice(0, 60),
       zone: String(body.zone).slice(0, 120),
+      urgent24h: body.urgent24h === true,
       logo: typeof body.logo === "string" ? body.logo : null,
       photos: Array.isArray(body.photos) ? body.photos.slice(0, 4) : [],
       status: "pending", // "pending" | "active" | "trial_denied" — solo el webhook de Stripe pasa esto a "active"
