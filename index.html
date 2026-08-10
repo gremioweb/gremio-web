@@ -147,8 +147,11 @@ async function fetchProfessionalById(id) {
 async function createProfessional(form) {
   return apiPost("/.netlify/functions/professionals", { action: "create", ...form });
 }
-async function cancelProfessional(id, phone, canceled) {
-  return apiPost("/.netlify/functions/professionals", { action: "cancel", id, phone, canceled });
+async function cancelProfessional(id, password, canceled) {
+  return apiPost("/.netlify/functions/professionals", { action: "cancel", id, password, canceled });
+}
+async function lookupMyProfessionals(phone, password) {
+  return apiPost("/.netlify/functions/professionals", { action: "lookup", phone, password });
 }
 async function fetchReviews() {
   try {
@@ -1267,9 +1270,14 @@ function ProfesionalView({ professionals, setProfessionals }) {
     return entry;
   }
 
-  async function toggleCancel(proId, phone, canceled) {
-    const entry = await cancelProfessional(proId, phone, canceled);
+  async function lookupMine(phone, password) {
+    return lookupMyProfessionals(phone, password);
+  }
+
+  async function toggleCancel(proId, password, canceled) {
+    const entry = await cancelProfessional(proId, password, canceled);
     setProfessionals((prev) => prev.map((p) => (p.id === proId ? entry : p)));
+    return entry;
   }
 
   return (
@@ -1282,7 +1290,7 @@ function ProfesionalView({ professionals, setProfessionals }) {
       {tab === "publicar" && (
         <PublishForm onCreatePending={createPending} onCheckStatus={refreshOne} onDone={() => setTab("panel")} />
       )}
-      {tab === "panel" && <PanelView professionals={professionals} onToggleCancel={toggleCancel} onRefresh={refreshOne} />}
+      {tab === "panel" && <PanelView onLookup={lookupMine} onToggleCancel={toggleCancel} onRefresh={refreshOne} />}
     </main>
   );
 }
@@ -1444,7 +1452,7 @@ function PhotosUploader({ value, onChange }) {
 function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    name: "", phone: "", email: "", category: CATEGORIES[0].id, description: "", price: "", zone: "",
+    name: "", phone: "", email: "", password: "", category: CATEGORIES[0].id, description: "", price: "", zone: "",
     logo: null, photos: [],
   });
   const [saving, setSaving] = useState(false);
@@ -1453,7 +1461,8 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
   const [created, setCreated] = useState(null);
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
-  const ready = form.name && form.phone && emailOk && form.description && form.price && form.zone;
+  const passwordOk = form.password.length >= 6;
+  const ready = form.name && form.phone && emailOk && passwordOk && form.description && form.price && form.zone;
 
   if (created) {
     return <PreviewStep pro={created} onDone={onDone} />;
@@ -1510,6 +1519,15 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
           <Input placeholder="tunegocio@email.com" value={form.email} onChange={set("email")} type="email" />
           <p className="text-[11px] mt-1" style={{ color: DIM }}>
             Es el que usarás para pagar en Stripe — solo puedes usar la prueba gratuita una vez por email.
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: DIM }}>
+            Contraseña de tu panel {form.password && !passwordOk && <span style={{ color: "#DC2626" }}>· mín. 6 caracteres</span>}
+          </p>
+          <Input placeholder="Crea una contraseña" value={form.password} onChange={set("password")} type="password" />
+          <p className="text-[11px] mt-1" style={{ color: DIM }}>
+            La usarás junto a tu WhatsApp para entrar en "Mi panel" más adelante. Elige una que recuerdes.
           </p>
         </div>
         <div>
@@ -1738,6 +1756,14 @@ function PreviewStep({ pro, onDone }) {
         </div>
       </div>
 
+      <div className="rounded-2xl border-2 p-4 flex items-center gap-3" style={{ borderColor: BORDER, background: SURFACE }}>
+        <Lock size={16} color={MUTED} />
+        <p className="text-sm" style={{ color: "#374151" }}>
+          Recuerda tu WhatsApp y la contraseña que acabas de crear — los necesitarás para entrar en
+          "Mi panel" más adelante.
+        </p>
+      </div>
+
       <div style={{ background: "#F3F4F6", padding: "16px", borderRadius: "16px" }}>
         <ProfessionalPreviewCard pro={pro} />
       </div>
@@ -1796,21 +1822,37 @@ function ProfessionalPreviewCard({ pro }) {
   );
 }
 
-function PanelView({ professionals, onToggleCancel, onRefresh }) {
-  const [lookup, setLookup] = useState("");
+function PanelView({ onLookup, onToggleCancel, onRefresh }) {
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [mine, setMine] = useState([]);
   const [searched, setSearched] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [actionError, setActionError] = useState("");
 
-  const mine = searched
-    ? professionals.filter((p) => waNumber(p.phone) === waNumber(lookup) && waNumber(lookup) !== "")
-    : [];
+  async function handleSearch() {
+    setSearching(true);
+    setSearchError("");
+    setActionError("");
+    try {
+      const results = await onLookup(phone, password);
+      setMine(results);
+      setSearched(true);
+    } catch (err) {
+      setSearchError(err.message || "No se pudo buscar tu panel ahora mismo.");
+    } finally {
+      setSearching(false);
+    }
+  }
 
   async function handleToggle(pro, canceled) {
     setBusyId(pro.id);
     setActionError("");
     try {
-      await onToggleCancel(pro.id, lookup, canceled);
+      const entry = await onToggleCancel(pro.id, password, canceled);
+      setMine((prev) => prev.map((p) => (p.id === pro.id ? entry : p)));
     } catch (err) {
       setActionError(err.message || "No se pudo actualizar tu anuncio.");
     } finally {
@@ -1822,7 +1864,8 @@ function PanelView({ professionals, onToggleCancel, onRefresh }) {
     setBusyId(pro.id);
     setActionError("");
     try {
-      await onRefresh(pro.id);
+      const entry = await onRefresh(pro.id);
+      setMine((prev) => prev.map((p) => (p.id === pro.id ? entry : p)));
     } catch (err) {
       setActionError("No se pudo comprobar el estado ahora mismo.");
     } finally {
@@ -1832,19 +1875,28 @@ function PanelView({ professionals, onToggleCancel, onRefresh }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex gap-2">
-        <Input placeholder="Introduce tu número de WhatsApp para ver tu panel" value={lookup} onChange={setLookup} />
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Input placeholder="Tu número de WhatsApp" value={phone} onChange={setPhone} inputMode="numeric" />
+        <Input placeholder="Tu contraseña" value={password} onChange={setPassword} type="password" />
         <button
-          onClick={() => setSearched(true)}
-          className="text-sm px-5 py-2.5 rounded-full font-extrabold uppercase tracking-wide shrink-0"
+          disabled={searching || !phone || !password}
+          onClick={handleSearch}
+          className="text-sm px-5 py-2.5 rounded-full font-extrabold uppercase tracking-wide shrink-0 disabled:opacity-50"
           style={{ background: SURFACE_2, color: TEXT, border: `2px solid ${BORDER}` }}
         >
-          Ver panel
+          {searching ? <Loader2 size={14} className="animate-spin" /> : "Ver panel"}
         </button>
       </div>
+      <p className="text-[12px] -mt-4" style={{ color: DIM }}>
+        Es la contraseña que creaste al publicar tu anuncio.
+      </p>
 
-      {searched && mine.length === 0 && (
-        <EmptyState icon={Inbox} text="No encontramos ningún perfil con ese número. Revisa que esté escrito igual que al publicarte." />
+      {searchError && (
+        <p className="text-[12px] font-semibold" style={{ color: "#DC2626" }}>⚠️ {searchError}</p>
+      )}
+
+      {searched && mine.length === 0 && !searchError && (
+        <EmptyState icon={Inbox} text="No encontramos ningún anuncio con ese teléfono y contraseña juntos. Revisa que estén escritos igual que al publicarte." />
       )}
 
       {actionError && (
