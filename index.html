@@ -708,6 +708,16 @@ function TicketStub({ children, accent = ORANGE }) {
 }
 
 function TrialTag({ pro }) {
+  if (pro.status === "trial_denied") {
+    return (
+      <span
+        className="text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wide"
+        style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626", fontFamily: "IBM Plex Mono" }}
+      >
+        ● prueba ya usada
+      </span>
+    );
+  }
   if (pro.canceled) {
     return (
       <span
@@ -1171,9 +1181,10 @@ function ClienteView({ professionals, reviews, onAddReview }) {
   );
 }
 
-function Input({ placeholder, value, onChange, onBlur, invalid, inputMode, maxLength }) {
+function Input({ placeholder, value, onChange, onBlur, invalid, inputMode, maxLength, type }) {
   return (
     <input
+      type={type || "text"}
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -1433,7 +1444,7 @@ function PhotosUploader({ value, onChange }) {
 function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    name: "", phone: "", category: CATEGORIES[0].id, description: "", price: "", zone: "",
+    name: "", phone: "", email: "", category: CATEGORIES[0].id, description: "", price: "", zone: "",
     logo: null, photos: [],
   });
   const [saving, setSaving] = useState(false);
@@ -1441,7 +1452,8 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
   const [pending, setPending] = useState(null);
   const [created, setCreated] = useState(null);
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
-  const ready = form.name && form.phone && form.description && form.price && form.zone;
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+  const ready = form.name && form.phone && emailOk && form.description && form.price && form.zone;
 
   if (created) {
     return <PreviewStep pro={created} onDone={onDone} />;
@@ -1490,6 +1502,15 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: DIM }}>Número de WhatsApp</p>
           <Input placeholder="Número de WhatsApp" value={form.phone} onChange={set("phone")} inputMode="numeric" />
+        </div>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: DIM }}>
+            Email {form.email && !emailOk && <span style={{ color: "#DC2626" }}>· formato no válido</span>}
+          </p>
+          <Input placeholder="tunegocio@email.com" value={form.email} onChange={set("email")} type="email" />
+          <p className="text-[11px] mt-1" style={{ color: DIM }}>
+            Es el que usarás para pagar en Stripe — solo puedes usar la prueba gratuita una vez por email.
+          </p>
         </div>
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: DIM }}>Categoría</p>
@@ -1566,7 +1587,8 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
 function StripeStep({ pending, onBack, onActivated, onCheckStatus }) {
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState("");
-  const payUrl = `${STRIPE_PAYMENT_LINK}?client_reference_id=${encodeURIComponent(pending.id)}`;
+  const [denied, setDenied] = useState(false);
+  const payUrl = `${STRIPE_PAYMENT_LINK}?client_reference_id=${encodeURIComponent(pending.id)}&prefilled_email=${encodeURIComponent(pending.email || "")}`;
 
   async function checkNow(showMessage) {
     setChecking(true);
@@ -1574,6 +1596,10 @@ function StripeStep({ pending, onBack, onActivated, onCheckStatus }) {
       const entry = await onCheckStatus(pending.id);
       if (entry.status === "active") {
         onActivated(entry);
+        return;
+      }
+      if (entry.status === "trial_denied") {
+        setDenied(true);
         return;
       }
       if (showMessage) {
@@ -1591,9 +1617,29 @@ function StripeStep({ pending, onBack, onActivated, onCheckStatus }) {
   // Comprueba solo, cada pocos segundos, si Stripe ya ha confirmado el pago
   // (por si el usuario vuelve de pagar y no pulsa el botón manualmente).
   useEffect(() => {
+    if (denied) return;
     const interval = setInterval(() => checkNow(false), 4000);
     return () => clearInterval(interval);
-  }, [pending.id]);
+  }, [pending.id, denied]);
+
+  if (denied) {
+    return (
+      <div className="flex flex-col gap-5">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-semibold w-fit" style={{ color: MUTED }}>
+          <ArrowLeft size={15} /> Volver a tus datos
+        </button>
+        <div className="rounded-2xl border-2 p-6 flex flex-col gap-3" style={{ borderColor: "#DC2626", background: "#FEF2F2" }}>
+          <p className="text-sm font-extrabold" style={{ color: "#7F1D1D" }}>⚠️ Ya usaste la prueba gratuita antes</p>
+          <p className="text-sm" style={{ color: "#7F1D1D" }}>
+            Ese correo ya inició una prueba gratuita con nosotros anteriormente, así que no puede
+            volver a activarse gratis. Tu suscripción se ha cancelado automáticamente y no se te ha
+            cobrado nada. Para publicar este anuncio, contacta con nosotros para activarlo con pago
+            inmediato.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -1906,6 +1952,14 @@ function PanelView({ professionals, onToggleCancel, onRefresh }) {
                   {busyId === pro.id ? <Loader2 size={12} className="animate-spin" /> : null} Comprobar estado del pago
                 </button>
               </div>
+            )}
+
+            {pro.status === "trial_denied" && (
+              <p className="text-sm" style={{ color: "#DC2626" }}>
+                El correo usado ya había iniciado una prueba gratuita antes, así que se canceló
+                automáticamente (no se te cobró nada). Contacta con nosotros para activar este
+                anuncio con pago inmediato.
+              </p>
             )}
 
             {pro.status === "active" && !pro.canceled && daysLeft(pro.nextChargeAt) <= 0 && (
