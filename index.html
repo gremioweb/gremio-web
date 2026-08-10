@@ -237,6 +237,17 @@ function waNumber(phone) {
   return digits;
 }
 
+// Compara texto ignorando tildes, mayúsculas y espacios sobrantes, para que
+// "malaga", "Málaga" y "MÁLAGA " se traten como lo mismo en cualquier
+// búsqueda o filtro de la web.
+function normalizeText(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function waLink(pro, extra) {
   const msg = `Hola, te he visto en Gremio. Necesito un presupuesto para ${catInfo(pro.category).label.toLowerCase()} en ${pro.zone}.${extra ? ` ${extra}` : ""}`;
   return `https://wa.me/${waNumber(pro.phone)}?text=${encodeURIComponent(msg)}`;
@@ -648,13 +659,13 @@ function SearchBar({ onSelectCategory }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
-  const q = query.trim().toLowerCase();
+  const q = normalizeText(query);
   const matches = q.length < 2
     ? []
     : CATEGORIES.filter(
         (c) =>
-          c.label.toLowerCase().includes(q) ||
-          c.keywords.some((k) => k.includes(q) || q.includes(k))
+          normalizeText(c.label).includes(q) ||
+          c.keywords.some((k) => normalizeText(k).includes(q) || q.includes(normalizeText(k)))
       ).slice(0, 5);
 
   return (
@@ -992,7 +1003,7 @@ function ClienteView({ professionals, reviews, onAddReview }) {
           );
           const data = await res.json();
           const guess = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.county;
-          const match = CITIES.find((c) => guess && (c.toLowerCase() === guess.toLowerCase() || guess.toLowerCase().includes(c.toLowerCase())));
+          const match = CITIES.find((c) => guess && (normalizeText(c) === normalizeText(guess) || normalizeText(guess).includes(normalizeText(c))));
           if (match) setSelectedCity(match);
         } catch {
           /* silencioso: si falla, se queda en "Toda España" */
@@ -1011,7 +1022,7 @@ function ClienteView({ professionals, reviews, onAddReview }) {
           p.urgent24h &&
           p.status === "active" &&
           !p.canceled &&
-          (!selectedCity || p.zone.toLowerCase().includes(selectedCity.toLowerCase()))
+          (!selectedCity || normalizeText(p.zone).includes(normalizeText(selectedCity)))
       )
     : selectedCat
     ? professionals.filter(
@@ -1019,7 +1030,7 @@ function ClienteView({ professionals, reviews, onAddReview }) {
           p.category === selectedCat &&
           p.status === "active" &&
           !p.canceled &&
-          (!selectedCity || p.zone.toLowerCase().includes(selectedCity.toLowerCase()))
+          (!selectedCity || normalizeText(p.zone).includes(normalizeText(selectedCity)))
       )
     : [];
 
@@ -1043,8 +1054,8 @@ function ClienteView({ professionals, reviews, onAddReview }) {
           className="text-3xl sm:text-5xl md:text-6xl leading-[1.05] sm:leading-[0.95] mb-2 uppercase"
           style={{ fontFamily: "Archivo Black", overflowWrap: "normal", wordBreak: "keep-all" }}
         >
-          ¿Qué necesitas<br />
-          <span style={{ color: ORANGE }}>arreglar hoy?</span>
+          ¿Qué servicio<br />
+          <span style={{ color: ORANGE }}>necesitas hoy?</span>
         </h1>
         <p className="text-sm sm:text-base max-w-md mb-3" style={{ color: MUTED }}>
           Elige un oficio y escribe directamente por WhatsApp a quien ya trabaja en tu zona.
