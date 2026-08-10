@@ -36,11 +36,37 @@ export default async (req) => {
       const all = await readAll(store);
       const idx = all.findIndex((p) => p.id === proId);
       if (idx !== -1) {
-        all[idx].status = "active";
-        all[idx].canceled = false;
-        all[idx].stripeSubscriptionId = session.subscription || all[idx].stripeSubscriptionId;
-        all[idx].nextChargeAt = Date.now() + MONTHLY_MS;
-        all[idx].renewals = [...(all[idx].renewals || []), { id: `ren_${Date.now()}`, date: Date.now() }];
+        // Comprobar si este cliente (por email) ya tuvo alguna suscripción
+        // antes -> si es así, está reutilizando la prueba gratuita: se
+        // cancela la suscripción nueva al instante y NO se activa el anuncio.
+        let isRepeatTrial = false;
+        if (session.customer) {
+          try {
+            const subs = await stripe.subscriptions.list({ customer: session.customer, limit: 100 });
+            isRepeatTrial = subs.data.length > 1;
+          } catch {
+            // Si la consulta falla, seguimos sin bloquear (mejor un falso
+            // negativo aquí que dejar a alguien sin poder publicar por un
+            // error nuestro).
+          }
+        }
+
+        if (isRepeatTrial && session.subscription) {
+          try {
+            await stripe.subscriptions.cancel(session.subscription);
+          } catch {
+            // Si ya estaba cancelada o falla, no pasa nada: igualmente no
+            // se activa el anuncio.
+          }
+          all[idx].status = "trial_denied";
+          all[idx].canceled = true;
+        } else {
+          all[idx].status = "active";
+          all[idx].canceled = false;
+          all[idx].stripeSubscriptionId = session.subscription || all[idx].stripeSubscriptionId;
+          all[idx].nextChargeAt = Date.now() + MONTHLY_MS;
+          all[idx].renewals = [...(all[idx].renewals || []), { id: `ren_${Date.now()}`, date: Date.now() }];
+        }
         await writeAll(store, all);
       }
     }
