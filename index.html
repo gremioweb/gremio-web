@@ -119,7 +119,7 @@ const Lock = (p) => (<Icon {...p}><rect x="3" y="11" width="18" height="11" rx="
 // un backend real y compartido (Netlify Functions + Netlify Blobs), así que
 // cualquier visitante, desde cualquier dispositivo, ve la misma información. ----
 async function apiGet(path) {
-  const res = await fetch(path);
+  const res = await fetch(path, { cache: "no-store" });
   if (!res.ok) throw new Error(`Error ${res.status} al cargar ${path}`);
   return res.json();
 }
@@ -197,7 +197,6 @@ const CATEGORIES = [
   { id: "tasacion", label: "Tasaciones", icon: Building2, tone: "orange", keywords: ["tasación", "tasador", "tasación de inmuebles", "valorar piso", "valoración inmueble", "precio vivienda", "peritación"] },
 ];
 
-const URGENT_CATEGORIES = ["cerrajeria", "fontaneria", "electricidad"];
 
 const TRIAL_DAYS = 30;
 const MONTHLY_PRICE = 15;
@@ -521,6 +520,7 @@ function ReviewForm({ onSubmit }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
   return (
     <div className="flex flex-col gap-2.5 rounded-xl border-2 p-3.5" style={{ borderColor: BORDER, background: SURFACE }}>
@@ -535,13 +535,20 @@ function ReviewForm({ onSubmit }) {
         className="text-sm rounded-xl px-3 py-2 outline-none resize-none"
         style={{ background: SURFACE_2, border: `2px solid ${BORDER}`, color: TEXT }}
       />
+      {error && <p className="text-[12px] font-semibold" style={{ color: "#DC2626" }}>⚠️ {error}</p>}
       <button
         disabled={!name || !rating || sending}
         onClick={async () => {
           setSending(true);
-          await onSubmit({ name, rating, comment });
-          setName(""); setRating(0); setComment("");
-          setSending(false);
+          setError("");
+          try {
+            await onSubmit({ name, rating, comment });
+            setName(""); setRating(0); setComment("");
+          } catch (err) {
+            setError(err.message || "No se pudo publicar la reseña. Inténtalo de nuevo.");
+          } finally {
+            setSending(false);
+          }
         }}
         className="self-start text-xs px-4 py-2 rounded-full font-extrabold uppercase tracking-wide disabled:opacity-40"
         style={{ background: ORANGE, color: INK }}
@@ -998,11 +1005,18 @@ function ClienteView({ professionals, reviews, onAddReview }) {
     );
   }, []);
 
-  const activeCategories = isUrgent ? URGENT_CATEGORIES : selectedCat ? [selectedCat] : [];
-  const filtered = activeCategories.length
+  const filtered = isUrgent
     ? professionals.filter(
         (p) =>
-          activeCategories.includes(p.category) &&
+          p.urgent24h &&
+          p.status === "active" &&
+          !p.canceled &&
+          (!selectedCity || p.zone.toLowerCase().includes(selectedCity.toLowerCase()))
+      )
+    : selectedCat
+    ? professionals.filter(
+        (p) =>
+          p.category === selectedCat &&
           p.status === "active" &&
           !p.canceled &&
           (!selectedCity || p.zone.toLowerCase().includes(selectedCity.toLowerCase()))
@@ -1105,7 +1119,7 @@ function ClienteView({ professionals, reviews, onAddReview }) {
       <section className="mt-8">
         {!selectedCat && !isUrgent && <WelcomeState />}
 
-        {activeCategories.length > 0 && filtered.length === 0 && (
+        {(isUrgent || selectedCat) && filtered.length === 0 && (
           <EmptyState
             icon={Inbox}
             text={
@@ -1130,7 +1144,17 @@ function ClienteView({ professionals, reviews, onAddReview }) {
                 <div className="flex items-center gap-3 min-w-0">
                   <ProAvatar pro={pro} />
                   <div className="min-w-0">
-                    <p style={{ fontFamily: "Archivo Black" }} className="text-base uppercase truncate">{pro.name}</p>
+                    <p style={{ fontFamily: "Archivo Black" }} className="text-base uppercase truncate flex items-center gap-1.5">
+                      {pro.name}
+                      {pro.urgent24h && (
+                        <span
+                          className="text-[10px] font-extrabold px-1.5 py-0.5 rounded shrink-0"
+                          style={{ background: "#DC2626", color: "#FFFFFF", fontFamily: "IBM Plex Mono" }}
+                        >
+                          24H
+                        </span>
+                      )}
+                    </p>
                     <div className="flex items-center gap-1 mt-0.5 text-xs" style={{ color: MUTED }}>
                       <MapPin size={12} /> {pro.zone}
                     </div>
@@ -1453,6 +1477,7 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     name: "", phone: "", email: "", password: "", category: CATEGORIES[0].id, description: "", price: "", zone: "",
+    urgent24h: false,
     logo: null, photos: [],
   });
   const [saving, setSaving] = useState(false);
@@ -1564,6 +1589,31 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
           style={{ background: SURFACE_2, border: `2px solid ${BORDER}`, color: TEXT }}
         />
       </div>
+
+      <label
+        className="flex items-start gap-3 rounded-2xl border-2 p-4 cursor-pointer"
+        style={{
+          borderColor: form.urgent24h ? "#DC2626" : BORDER,
+          background: form.urgent24h ? "#FEF2F2" : SURFACE,
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={form.urgent24h}
+          onChange={(e) => set("urgent24h")(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0"
+        />
+        <div>
+          <p className="text-sm font-extrabold flex items-center gap-1.5" style={{ color: form.urgent24h ? "#DC2626" : TEXT }}>
+            <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "#DC2626" }} />
+            Servicio de urgencia 24 horas
+          </p>
+          <p className="text-xs mt-1" style={{ color: MUTED }}>
+            Aparecerás en el botón "Urgencias 24h" de la portada. Márcalo solo si de verdad atiendes
+            llamadas a cualquier hora, todos los días.
+          </p>
+        </div>
+      </label>
 
       <div className="flex flex-col gap-2">
         <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: DIM }}>Fotos del negocio</p>
