@@ -300,6 +300,16 @@ function normalizeText(s) {
     .trim();
 }
 
+// Muestra el precio orientativo con el símbolo € aunque el profesional haya
+// escrito solo el número (ej. "25" -> "25€", "desde 25" -> "desde 25€").
+// Si ya escribió el símbolo, o si no hay ningún número (ej. "presupuesto
+// gratis"), se deja tal cual, sin forzar nada raro.
+function displayPrice(price) {
+  const p = String(price || "").trim();
+  if (!p || p.includes("€") || !/\d/.test(p)) return p;
+  return `${p}€`;
+}
+
 function waLink(pro, extra) {
   const msg = `Hola, te he visto en Gremio. Necesito un presupuesto para ${catInfo(pro.category).label.toLowerCase()} en ${pro.zone}.${extra ? ` ${extra}` : ""}`;
   return `https://wa.me/${waNumber(pro.phone)}?text=${encodeURIComponent(msg)}`;
@@ -566,7 +576,7 @@ function ProfileSheet({ pro, reviews, onAddReview, onClose }) {
 
           <div className="rounded-xl border-2 p-4" style={{ borderColor: BORDER, background: SURFACE }}>
             <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: DIM }}>Presupuesto orientativo</p>
-            <p className="text-xl" style={{ fontFamily: "Archivo Black", color: ORANGE }}>{pro.price}</p>
+            <p className="text-xl" style={{ fontFamily: "Archivo Black", color: ORANGE }}>{displayPrice(pro.price)}</p>
             <p className="text-sm mt-2" style={{ color: "#374151" }}>{pro.description}</p>
           </div>
 
@@ -1414,7 +1424,7 @@ function ClienteView({ professionals, reviews, onAddReview }) {
                   className="text-sm font-bold px-2.5 py-1 rounded-lg shrink-0"
                   style={{ fontFamily: "IBM Plex Mono", background: SURFACE_2, color: ORANGE }}
                 >
-                  {pro.price}
+                  {displayPrice(pro.price)}
                 </span>
               </div>
 
@@ -1661,7 +1671,7 @@ function LogoUploader({ value, onChange }) {
               setUploading(true);
               setError("");
               try {
-                const dataUrl = await readFileAsDataUrl(file, 600_000);
+                const dataUrl = await readFileAsDataUrl(file, 900_000);
                 const url = await uploadPhoto(dataUrl);
                 onChange(url);
               } catch (err) {
@@ -2155,7 +2165,7 @@ function ProfessionalPreviewCard({ pro }) {
         className="absolute top-3 right-3 z-10 text-[12px] font-extrabold px-3 py-1.5 rounded-full"
         style={{ background: "#DBEAFE", color: "#1D4ED8" }}
       >
-        {pro.price}
+        {displayPrice(pro.price)}
       </div>
 
       <div className="flex gap-3 p-4">
