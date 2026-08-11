@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import { checkRateLimit, clientIp } from "./_shared/ratelimit.mjs";
+import { checkRateLimit, clientIp } from "../lib/ratelimit.mjs";
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
