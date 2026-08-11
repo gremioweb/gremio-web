@@ -2263,9 +2263,20 @@ function PanelView({ onLookup, onToggleCancel, onRefresh }) {
           {searching ? <Loader2 size={14} className="animate-spin" /> : "Ver panel"}
         </button>
       </div>
-      <p className="text-[12px] -mt-4" style={{ color: DIM }}>
-        Es la contraseña que creaste al publicar tu anuncio. ¿La olvidaste? Escríbenos por WhatsApp o email y te la restablecemos verificando tu identidad.
-      </p>
+      <div className="flex items-center gap-2 -mt-2 flex-wrap">
+        <p className="text-[12px]" style={{ color: DIM }}>
+          Es la contraseña que creaste al publicar tu anuncio. ¿La olvidaste?
+        </p>
+        <a
+          href={`https://wa.me/${waNumber("633772121")}?text=${encodeURIComponent("Hola, he olvidado la contraseña de mi panel en Gremio y necesito recuperarla.")}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[11px] px-3.5 py-1.5 rounded-full font-extrabold uppercase tracking-wide inline-flex items-center gap-1.5 transition-transform hover:scale-105 shrink-0"
+          style={{ background: WHATSAPP, color: "#04150C", boxShadow: "0 6px 16px -6px rgba(37,211,102,0.55)" }}
+        >
+          <MessageCircle size={13} strokeWidth={2.5} /> Olvidé mi contraseña
+        </a>
+      </div>
 
       {searchError && (
         <p className="text-[12px] font-semibold" style={{ color: "#DC2626" }}>⚠️ {searchError}</p>
