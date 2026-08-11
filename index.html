@@ -9,6 +9,16 @@
 <meta name="robots" content="index, follow" />
 <link rel="canonical" href="https://gremioprofesional.netlify.app/" />
 
+<!-- Favicon / icono de la web: mismo diseño que el logo de la cabecera
+     (cuadrado naranja con el maletín), en los tamaños que usan Google,
+     navegadores y móviles. -->
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png" />
+<link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/manifest.json" />
+
 <!-- Open Graph (vista previa al compartir en WhatsApp, Facebook, etc.) -->
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Gremio — Profesionales de confianza en Andalucía" />
@@ -28,6 +38,7 @@
   "@type": "WebSite",
   "name": "Gremio",
   "url": "https://gremioprofesional.netlify.app/",
+  "logo": "https://gremioprofesional.netlify.app/icon-512.png",
   "description": "Marketplace de servicios profesionales en Andalucía: carpintería, fontanería, electricidad, cerrajería, reformas y más. Contacto directo por WhatsApp.",
   "inLanguage": "es-ES",
   "areaServed": [
@@ -190,6 +201,11 @@ async function fetchProfessionals() {
 async function fetchProfessionalById(id) {
   return apiGet(`/.netlify/functions/professionals?id=${encodeURIComponent(id)}`);
 }
+async function uploadPhoto(dataUrl) {
+  const data = await apiPost("/.netlify/functions/photos", { dataUrl });
+  return data.url;
+}
+
 async function createProfessional(form) {
   return apiPost("/.netlify/functions/professionals", { action: "create", ...form });
 }
@@ -733,6 +749,8 @@ function App() {
   const [professionals, setProfessionals] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [legalPage, setLegalPage] = useState(null);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -746,6 +764,24 @@ function App() {
   async function addReview(professionalId, review) {
     const entry = await createReview({ professionalId, ...review });
     setReviews((prev) => [...prev, entry]);
+  }
+
+  if (legalPage) {
+    return (
+      <div className="min-h-screen w-full" style={{ background: BG, color: TEXT, fontFamily: "Inter" }}>
+        <HazardStrip />
+        <LegalPage page={legalPage} onBack={() => setLegalPage(null)} />
+      </div>
+    );
+  }
+
+  if (adminOpen) {
+    return (
+      <div className="min-h-screen w-full" style={{ background: BG, color: TEXT, fontFamily: "Inter" }}>
+        <HazardStrip />
+        <AdminPanel onBack={() => setAdminOpen(false)} />
+      </div>
+    );
   }
 
   return (
@@ -762,7 +798,289 @@ function App() {
       ) : (
         <ProfesionalView professionals={professionals} setProfessionals={setProfessionals} />
       )}
+      <Footer onNavigateLegal={setLegalPage} onOpenAdmin={() => setAdminOpen(true)} />
     </div>
+  );
+}
+
+function Footer({ onNavigateLegal, onOpenAdmin }) {
+  return (
+    <footer className="max-w-5xl mx-auto px-5 py-10 mt-10" style={{ borderTop: `1px solid ${BORDER}` }}>
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs" style={{ color: MUTED }}>
+        <span style={{ fontFamily: "Archivo Black" }} className="uppercase" >Gremio</span>
+        <button onClick={() => onNavigateLegal("aviso")} className="hover:underline">Aviso legal</button>
+        <button onClick={() => onNavigateLegal("privacidad")} className="hover:underline">Privacidad</button>
+        <button onClick={() => onNavigateLegal("terminos")} className="hover:underline">Términos y condiciones</button>
+        <button onClick={() => onNavigateLegal("cookies")} className="hover:underline">Cookies</button>
+      </div>
+      <div className="text-center mt-4">
+        <button onClick={onOpenAdmin} className="text-[10px]" style={{ color: DIM }}>
+          ·
+        </button>
+      </div>
+    </footer>
+  );
+}
+
+function LegalPage({ page, onBack }) {
+  const pages = {
+    aviso: {
+      title: "Aviso legal",
+      body: (
+        <>
+          <p><strong>Titular del sitio web:</strong> [TU NOMBRE COMPLETO O RAZÓN SOCIAL] · Domicilio: [TU DIRECCIÓN] · Email de contacto: [TU EMAIL]</p>
+          <p>Gremio es una plataforma que pone en contacto a personas que buscan servicios profesionales con profesionales autónomos y negocios locales. Gremio no presta directamente los servicios anunciados, no es parte del contrato entre el cliente y el profesional, y no interviene en la ejecución, calidad ni resultado de los trabajos contratados a través de la plataforma.</p>
+          <p>El acceso y uso de este sitio web atribuye la condición de usuario y supone la aceptación plena de las condiciones incluidas en este Aviso Legal, en la Política de Privacidad y en los Términos y Condiciones.</p>
+          <p>Todos los contenidos del sitio (textos, diseño, código, logotipo) son propiedad de [TU NOMBRE / RAZÓN SOCIAL] o se usan con la debida autorización, salvo el contenido publicado por cada profesional (fotos, descripciones, precios), del que cada profesional es el único responsable.</p>
+        </>
+      ),
+    },
+    privacidad: {
+      title: "Política de privacidad",
+      body: (
+        <>
+          <p><strong>Responsable del tratamiento:</strong> [TU NOMBRE O RAZÓN SOCIAL] · [TU EMAIL DE CONTACTO]</p>
+          <p><strong>Datos que recogemos:</strong> a los profesionales que se publican, les pedimos nombre del negocio, teléfono, email, contraseña (guardada cifrada, nunca en texto plano), categoría, zona, precio orientativo, y opcionalmente logo y fotos. A los clientes que dejan una reseña, nombre y comentario. No pedimos ni guardamos datos de tarjeta — los pagos los procesa Stripe directamente, bajo su propia política de privacidad.</p>
+          <p><strong>Finalidad:</strong> mostrar el perfil del profesional en el buscador público, gestionar la suscripción de pago, y permitir el acceso al panel privado de cada profesional.</p>
+          <p><strong>Conservación:</strong> los datos se conservan mientras el anuncio esté activo o mientras no se solicite su eliminación.</p>
+          <p><strong>Derechos:</strong> cualquier persona puede solicitar acceder, rectificar, o eliminar sus datos escribiendo a [TU EMAIL DE CONTACTO].</p>
+          <p><strong>Terceros:</strong> usamos Stripe (pagos) y Netlify (alojamiento y base de datos) como encargados del tratamiento, ambos con sus propias políticas de privacidad y garantías de seguridad.</p>
+        </>
+      ),
+    },
+    terminos: {
+      title: "Términos y condiciones",
+      body: (
+        <>
+          <p><strong>Qué incluye la suscripción:</strong> por {MONTHLY_PRICE}€/mes (con los primeros {TRIAL_DAYS} días gratis en la primera suscripción), el profesional obtiene un perfil visible en el buscador de Gremio dentro de su categoría y zona, con logo, fotos, precio orientativo y botón de contacto directo por WhatsApp.</p>
+          <p><strong>Prueba gratuita:</strong> disponible una única vez por email. Pasado el periodo de prueba, se cobra automáticamente la cuota mensual salvo cancelación previa.</p>
+          <p><strong>Cancelación:</strong> el profesional puede cancelar su suscripción en cualquier momento desde su panel privado (WhatsApp + contraseña). La cancelación es inmediata y detiene también el cobro real en Stripe — no se cobra ningún importe adicional tras cancelar.</p>
+          <p><strong>Responsabilidad:</strong> Gremio es un directorio de contacto. No verifica la calidad, licencias, seguros ni resultado de los trabajos realizados por los profesionales publicados, y no media en disputas entre cliente y profesional. Cada profesional es responsable de la veracidad de la información que publica.</p>
+          <p><strong>Contenido publicado:</strong> el profesional garantiza que las fotos, descripciones y precios que publica son reales y de su titularidad o con permiso de uso, y se compromete a no publicar contenido falso, engañoso o que infrinja derechos de terceros.</p>
+        </>
+      ),
+    },
+    cookies: {
+      title: "Política de cookies",
+      body: (
+        <>
+          <p>Este sitio usa un número mínimo de cookies y tecnologías similares, estrictamente necesarias para su funcionamiento:</p>
+          <ul className="list-disc pl-5 flex flex-col gap-1">
+            <li>Cookies técnicas propias de Stripe durante el proceso de pago, necesarias para procesar la suscripción de forma segura.</li>
+            <li>No usamos cookies de publicidad ni de seguimiento con fines de marketing.</li>
+            <li>No usamos Google Analytics ni herramientas similares de terceros en este momento.</li>
+          </ul>
+          <p>Al no usar cookies no esenciales, no es necesario un banner de consentimiento adicional para las cookies técnicas — pero si en el futuro se añaden herramientas de analítica o marketing, esta política se actualizará y se pedirá el consentimiento correspondiente.</p>
+        </>
+      ),
+    },
+  };
+
+  const current = pages[page] || pages.aviso;
+
+  return (
+    <main className="max-w-2xl mx-auto px-5 pb-16 pt-12">
+      <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-semibold mb-6" style={{ color: MUTED }}>
+        <ArrowLeft size={15} /> Volver a Gremio
+      </button>
+      <h1 className="text-2xl mb-2" style={{ fontFamily: "Archivo Black" }}>{current.title}</h1>
+      <p className="text-xs mb-6" style={{ color: DIM }}>Última actualización: {new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}</p>
+      <div className="flex flex-col gap-4 text-sm leading-relaxed" style={{ color: "#374151" }}>
+        {current.body}
+      </div>
+    </main>
+  );
+}
+
+function AdminPanel({ onBack }) {
+  const [adminKey, setAdminKey] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
+  const [tab, setTab] = useState("profesionales");
+  const [pros, setPros] = useState([]);
+  const [revs, setRevs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [resetTarget, setResetTarget] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+
+  async function adminCall(action, extra) {
+    const res = await fetch("/.netlify/functions/admin", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ adminKey, action, ...extra }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    return data;
+  }
+
+  async function loadAll() {
+    setLoading(true);
+    setError("");
+    try {
+      const [p, r] = await Promise.all([adminCall("list-professionals"), adminCall("list-reviews")]);
+      setPros(p);
+      setRevs(r);
+      setUnlocked(true);
+    } catch (err) {
+      setError(err.message || "No se pudo entrar. Revisa la clave.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deletePro(id) {
+    if (!window.confirm("¿Eliminar este anuncio por completo? No se puede deshacer.")) return;
+    try {
+      await adminCall("delete-professional", { id });
+      setPros((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function deleteReview(id) {
+    if (!window.confirm("¿Eliminar esta reseña?")) return;
+    try {
+      await adminCall("delete-review", { id });
+      setRevs((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function submitReset() {
+    if (!resetTarget || newPassword.length < 6) {
+      setError("La nueva contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+    try {
+      await adminCall("reset-password", { id: resetTarget.id, newPassword });
+      setResetTarget(null);
+      setNewPassword("");
+      setError("");
+      alert(`Contraseña actualizada para ${resetTarget.name}. Comunícasela al profesional por un canal seguro.`);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  if (!unlocked) {
+    return (
+      <main className="max-w-sm mx-auto px-5 pb-16 pt-16">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-semibold mb-6" style={{ color: MUTED }}>
+          <ArrowLeft size={15} /> Volver a Gremio
+        </button>
+        <div className="flex items-center gap-2 mb-4">
+          <Lock size={18} color={MUTED} />
+          <h1 className="text-lg font-extrabold">Panel de administración</h1>
+        </div>
+        <Input placeholder="Clave de administrador" value={adminKey} onChange={setAdminKey} type="password" />
+        {error && <p className="text-[12px] font-semibold mt-2" style={{ color: "#DC2626" }}>⚠️ {error}</p>}
+        <button
+          disabled={!adminKey || loading}
+          onClick={loadAll}
+          className="w-full mt-3 text-sm px-6 py-3 rounded-full font-extrabold uppercase tracking-wide disabled:opacity-50"
+          style={{ background: "#2563EB", color: "#FFFFFF" }}
+        >
+          {loading ? <Loader2 size={15} className="animate-spin" /> : "Entrar"}
+        </button>
+      </main>
+    );
+  }
+
+  return (
+    <main className="max-w-3xl mx-auto px-5 pb-16 pt-10">
+      <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-semibold mb-6" style={{ color: MUTED }}>
+        <ArrowLeft size={15} /> Volver a Gremio
+      </button>
+      <h1 className="text-lg font-extrabold mb-4">Panel de administración</h1>
+
+      <div className="flex gap-2 mb-6">
+        <TabButton active={tab === "profesionales"} onClick={() => setTab("profesionales")}>Profesionales ({pros.length})</TabButton>
+        <TabButton active={tab === "resenas"} onClick={() => setTab("resenas")}>Reseñas ({revs.length})</TabButton>
+      </div>
+
+      {error && <p className="text-[12px] font-semibold mb-4" style={{ color: "#DC2626" }}>⚠️ {error}</p>}
+
+      {tab === "profesionales" && (
+        <div className="flex flex-col gap-3">
+          {pros.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No hay profesionales todavía.</p>}
+          {pros.map((p) => (
+            <div key={p.id} className="rounded-xl border-2 p-3.5 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: BORDER, background: SURFACE }}>
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate">{p.name} <span className="font-normal" style={{ color: DIM }}>· {catInfo(p.category).label} · {p.zone}</span></p>
+                <p className="text-xs mt-0.5" style={{ color: MUTED }}>
+                  {p.phone} · {p.email} · estado: <strong>{p.status}</strong>{p.canceled ? " · cancelado" : ""}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => setResetTarget(p)}
+                  className="text-[11px] font-bold px-3 py-1.5 rounded-full uppercase"
+                  style={{ background: SURFACE_2, color: TEXT, border: `1px solid ${BORDER}` }}
+                >
+                  Resetear contraseña
+                </button>
+                <button
+                  onClick={() => deletePro(p.id)}
+                  className="text-[11px] font-bold px-3 py-1.5 rounded-full uppercase"
+                  style={{ color: "#DC2626", border: "1px solid #DC2626" }}
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "resenas" && (
+        <div className="flex flex-col gap-3">
+          {revs.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No hay reseñas todavía.</p>}
+          {revs.map((r) => (
+            <div key={r.id} className="rounded-xl border-2 p-3.5 flex items-center justify-between gap-3" style={{ borderColor: BORDER, background: SURFACE }}>
+              <div className="min-w-0">
+                <p className="text-sm font-bold">{r.name} · {"★".repeat(r.rating)}</p>
+                <p className="text-xs mt-0.5 truncate" style={{ color: MUTED }}>{r.comment}</p>
+              </div>
+              <button
+                onClick={() => deleteReview(r.id)}
+                className="text-[11px] font-bold px-3 py-1.5 rounded-full uppercase shrink-0"
+                style={{ color: "#DC2626", border: "1px solid #DC2626" }}
+              >
+                Eliminar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {resetTarget && (
+        <div className="fixed inset-0 flex items-center justify-center p-5" style={{ background: "rgba(0,0,0,0.5)" }}>
+          <div className="rounded-2xl p-5 w-full max-w-sm" style={{ background: BG }}>
+            <p className="text-sm font-extrabold mb-3">Nueva contraseña para {resetTarget.name}</p>
+            <Input placeholder="Nueva contraseña (mín. 6)" value={newPassword} onChange={setNewPassword} type="password" />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => { setResetTarget(null); setNewPassword(""); }}
+                className="flex-1 text-sm px-4 py-2.5 rounded-full font-extrabold uppercase"
+                style={{ border: `1px solid ${BORDER}`, color: MUTED }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitReset}
+                className="flex-1 text-sm px-4 py-2.5 rounded-full font-extrabold uppercase"
+                style={{ background: "#2563EB", color: "#FFFFFF" }}
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }
 
@@ -988,7 +1306,7 @@ function ClienteView({ professionals, reviews, onAddReview }) {
           className="inline-flex items-center gap-1.5 mt-2.5 text-[11px] font-semibold px-3 py-1.5 rounded-full"
           style={{ background: "rgba(13,148,136,0.1)", color: YELLOW }}
         >
-          <Users size={12} /> ⭐ Más de 1.200 profesionales verificados en toda Andalucía
+          <Users size={12} /> ⭐ Profesionales verificados en las 8 provincias de Andalucía
         </div>
       </section>
 
@@ -1304,6 +1622,7 @@ function TabButton({ active, onClick, children }) {
 
 function LogoUploader({ value, onChange }) {
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
   return (
     <div className="flex items-center gap-3">
       <div className="relative">
@@ -1311,7 +1630,7 @@ function LogoUploader({ value, onChange }) {
           <img src={value} alt="Tu logo" className="h-16 w-16 rounded-xl object-cover" style={{ border: `2px solid ${BORDER}` }} />
         ) : (
           <div className="h-16 w-16 rounded-xl flex items-center justify-center" style={{ background: SURFACE_2, border: `2px dashed ${BORDER}` }}>
-            <Building2 size={22} color={MUTED} />
+            {uploading ? <Loader2 size={18} color={MUTED} className="animate-spin" /> : <Building2 size={22} color={MUTED} />}
           </div>
         )}
         {value && (
@@ -1329,20 +1648,26 @@ function LogoUploader({ value, onChange }) {
           className="text-xs font-bold px-3.5 py-2 rounded-full uppercase tracking-wide cursor-pointer inline-flex items-center gap-1.5"
           style={{ background: SURFACE_2, color: TEXT, border: `1px solid ${BORDER}` }}
         >
-          <Camera size={13} /> {value ? "Cambiar logo" : "Subir logo"}
+          <Camera size={13} /> {uploading ? "Subiendo…" : value ? "Cambiar logo" : "Subir logo"}
           <input
             type="file"
             accept="image/*"
             className="hidden"
+            disabled={uploading}
             onChange={async (e) => {
               const file = e.target.files?.[0];
               e.target.value = "";
               if (!file) return;
+              setUploading(true);
+              setError("");
               try {
-                onChange(await readFileAsDataUrl(file, 600_000));
-                setError("");
+                const dataUrl = await readFileAsDataUrl(file, 600_000);
+                const url = await uploadPhoto(dataUrl);
+                onChange(url);
               } catch (err) {
-                setError(err.message);
+                setError(err.message || "No se pudo subir la imagen.");
+              } finally {
+                setUploading(false);
               }
             }}
           />
@@ -1355,6 +1680,7 @@ function LogoUploader({ value, onChange }) {
 
 function PhotosUploader({ value, onChange }) {
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
   return (
     <div>
       <div className="flex gap-2 flex-wrap">
@@ -1375,22 +1701,33 @@ function PhotosUploader({ value, onChange }) {
             className="h-16 w-16 rounded-lg flex flex-col items-center justify-center gap-0.5 cursor-pointer"
             style={{ background: SURFACE_2, border: `2px dashed ${BORDER}` }}
           >
-            <ImagePlus size={16} color={MUTED} />
-            <span className="text-[9px] font-bold" style={{ color: MUTED }}>AÑADIR</span>
+            {uploading ? (
+              <Loader2 size={16} color={MUTED} className="animate-spin" />
+            ) : (
+              <>
+                <ImagePlus size={16} color={MUTED} />
+                <span className="text-[9px] font-bold" style={{ color: MUTED }}>AÑADIR</span>
+              </>
+            )}
             <input
               type="file"
               accept="image/*"
               className="hidden"
+              disabled={uploading}
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 e.target.value = "";
                 if (!file) return;
+                setUploading(true);
+                setError("");
                 try {
                   const dataUrl = await readFileAsDataUrl(file, 900_000);
-                  onChange([...value, dataUrl]);
-                  setError("");
+                  const url = await uploadPhoto(dataUrl);
+                  onChange([...value, url]);
                 } catch (err) {
-                  setError(err.message);
+                  setError(err.message || "No se pudo subir la imagen.");
+                } finally {
+                  setUploading(false);
                 }
               }}
             />
@@ -1870,7 +2207,7 @@ function PanelView({ onLookup, onToggleCancel, onRefresh }) {
         </button>
       </div>
       <p className="text-[12px] -mt-4" style={{ color: DIM }}>
-        Es la contraseña que creaste al publicar tu anuncio.
+        Es la contraseña que creaste al publicar tu anuncio. ¿La olvidaste? Escríbenos por WhatsApp o email y te la restablecemos verificando tu identidad.
       </p>
 
       {searchError && (
