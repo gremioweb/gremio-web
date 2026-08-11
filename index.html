@@ -822,61 +822,61 @@ function Footer({ onNavigateLegal, onOpenAdmin }) {
   );
 }
 
-function LegalPage({ page, onBack }) {
-  const pages = {
-    aviso: {
-      title: "Aviso legal",
-      body: (
-        <>
-          <p><strong>Titular del sitio web:</strong> [TU NOMBRE COMPLETO O RAZÓN SOCIAL] · Domicilio: [TU DIRECCIÓN] · Email de contacto: [TU EMAIL]</p>
-          <p>Gremio es una plataforma que pone en contacto a personas que buscan servicios profesionales con profesionales autónomos y negocios locales. Gremio no presta directamente los servicios anunciados, no es parte del contrato entre el cliente y el profesional, y no interviene en la ejecución, calidad ni resultado de los trabajos contratados a través de la plataforma.</p>
-          <p>El acceso y uso de este sitio web atribuye la condición de usuario y supone la aceptación plena de las condiciones incluidas en este Aviso Legal, en la Política de Privacidad y en los Términos y Condiciones.</p>
-          <p>Todos los contenidos del sitio (textos, diseño, código, logotipo) son propiedad de [TU NOMBRE / RAZÓN SOCIAL] o se usan con la debida autorización, salvo el contenido publicado por cada profesional (fotos, descripciones, precios), del que cada profesional es el único responsable.</p>
-        </>
-      ),
-    },
-    privacidad: {
-      title: "Política de privacidad",
-      body: (
-        <>
-          <p><strong>Responsable del tratamiento:</strong> [TU NOMBRE O RAZÓN SOCIAL] · [TU EMAIL DE CONTACTO]</p>
-          <p><strong>Datos que recogemos:</strong> a los profesionales que se publican, les pedimos nombre del negocio, teléfono, email, contraseña (guardada cifrada, nunca en texto plano), categoría, zona, precio orientativo, y opcionalmente logo y fotos. A los clientes que dejan una reseña, nombre y comentario. No pedimos ni guardamos datos de tarjeta — los pagos los procesa Stripe directamente, bajo su propia política de privacidad.</p>
-          <p><strong>Finalidad:</strong> mostrar el perfil del profesional en el buscador público, gestionar la suscripción de pago, y permitir el acceso al panel privado de cada profesional.</p>
-          <p><strong>Conservación:</strong> los datos se conservan mientras el anuncio esté activo o mientras no se solicite su eliminación.</p>
-          <p><strong>Derechos:</strong> cualquier persona puede solicitar acceder, rectificar, o eliminar sus datos escribiendo a [TU EMAIL DE CONTACTO].</p>
-          <p><strong>Terceros:</strong> usamos Stripe (pagos) y Netlify (alojamiento y base de datos) como encargados del tratamiento, ambos con sus propias políticas de privacidad y garantías de seguridad.</p>
-        </>
-      ),
-    },
-    terminos: {
-      title: "Términos y condiciones",
-      body: (
-        <>
-          <p><strong>Qué incluye la suscripción:</strong> por {MONTHLY_PRICE}€/mes (con los primeros {TRIAL_DAYS} días gratis en la primera suscripción), el profesional obtiene un perfil visible en el buscador de Gremio dentro de su categoría y zona, con logo, fotos, precio orientativo y botón de contacto directo por WhatsApp.</p>
-          <p><strong>Prueba gratuita:</strong> disponible una única vez por email. Pasado el periodo de prueba, se cobra automáticamente la cuota mensual salvo cancelación previa.</p>
-          <p><strong>Cancelación:</strong> el profesional puede cancelar su suscripción en cualquier momento desde su panel privado (WhatsApp + contraseña). La cancelación es inmediata y detiene también el cobro real en Stripe — no se cobra ningún importe adicional tras cancelar.</p>
-          <p><strong>Responsabilidad:</strong> Gremio es un directorio de contacto. No verifica la calidad, licencias, seguros ni resultado de los trabajos realizados por los profesionales publicados, y no media en disputas entre cliente y profesional. Cada profesional es responsable de la veracidad de la información que publica.</p>
-          <p><strong>Contenido publicado:</strong> el profesional garantiza que las fotos, descripciones y precios que publica son reales y de su titularidad o con permiso de uso, y se compromete a no publicar contenido falso, engañoso o que infrinja derechos de terceros.</p>
-        </>
-      ),
-    },
-    cookies: {
-      title: "Política de cookies",
-      body: (
-        <>
-          <p>Este sitio usa un número mínimo de cookies y tecnologías similares, estrictamente necesarias para su funcionamiento:</p>
-          <ul className="list-disc pl-5 flex flex-col gap-1">
-            <li>Cookies técnicas propias de Stripe durante el proceso de pago, necesarias para procesar la suscripción de forma segura.</li>
-            <li>No usamos cookies de publicidad ni de seguimiento con fines de marketing.</li>
-            <li>No usamos Google Analytics ni herramientas similares de terceros en este momento.</li>
-          </ul>
-          <p>Al no usar cookies no esenciales, no es necesario un banner de consentimiento adicional para las cookies técnicas — pero si en el futuro se añaden herramientas de analítica o marketing, esta política se actualizará y se pedirá el consentimiento correspondiente.</p>
-        </>
-      ),
-    },
-  };
+const LEGAL_CONTENT = {
+  aviso: {
+    title: "Aviso legal",
+    body: (
+      <>
+        <p><strong>Titular del sitio web:</strong> Rubén · Domicilio: Málaga, España · Email de contacto: gremioprofesionalpro@gmail.com</p>
+        <p>Gremio es una plataforma que pone en contacto a personas que buscan servicios profesionales con profesionales autónomos y negocios locales. Gremio no presta directamente los servicios anunciados, no es parte del contrato entre el cliente y el profesional, y no interviene en la ejecución, calidad ni resultado de los trabajos contratados a través de la plataforma.</p>
+        <p>El acceso y uso de este sitio web atribuye la condición de usuario y supone la aceptación plena de las condiciones incluidas en este Aviso Legal, en la Política de Privacidad y en los Términos y Condiciones.</p>
+        <p>Todos los contenidos del sitio (textos, diseño, código, logotipo) son propiedad de Rubén o se usan con la debida autorización, salvo el contenido publicado por cada profesional (fotos, descripciones, precios), del que cada profesional es el único responsable.</p>
+      </>
+    ),
+  },
+  privacidad: {
+    title: "Política de privacidad",
+    body: (
+      <>
+        <p><strong>Responsable del tratamiento:</strong> Rubén · gremioprofesionalpro@gmail.com</p>
+        <p><strong>Datos que recogemos:</strong> a los profesionales que se publican, les pedimos nombre del negocio, teléfono, email, contraseña (guardada cifrada, nunca en texto plano), categoría, zona, precio orientativo, y opcionalmente logo y fotos. A los clientes que dejan una reseña, nombre y comentario. No pedimos ni guardamos datos de tarjeta — los pagos los procesa Stripe directamente, bajo su propia política de privacidad.</p>
+        <p><strong>Finalidad:</strong> mostrar el perfil del profesional en el buscador público, gestionar la suscripción de pago, y permitir el acceso al panel privado de cada profesional.</p>
+        <p><strong>Conservación:</strong> los datos se conservan mientras el anuncio esté activo o mientras no se solicite su eliminación.</p>
+        <p><strong>Derechos:</strong> cualquier persona puede solicitar acceder, rectificar, o eliminar sus datos escribiendo a gremioprofesionalpro@gmail.com.</p>
+        <p><strong>Terceros:</strong> usamos Stripe (pagos) y Netlify (alojamiento y base de datos) como encargados del tratamiento, ambos con sus propias políticas de privacidad y garantías de seguridad.</p>
+      </>
+    ),
+  },
+  terminos: {
+    title: "Términos y condiciones",
+    body: (
+      <>
+        <p><strong>Qué incluye la suscripción:</strong> por {MONTHLY_PRICE}€/mes (con los primeros {TRIAL_DAYS} días gratis en la primera suscripción), el profesional obtiene un perfil visible en el buscador de Gremio dentro de su categoría y zona, con logo, fotos, precio orientativo y botón de contacto directo por WhatsApp.</p>
+        <p><strong>Prueba gratuita:</strong> disponible una única vez por email. Pasado el periodo de prueba, se cobra automáticamente la cuota mensual salvo cancelación previa.</p>
+        <p><strong>Cancelación:</strong> el profesional puede cancelar su suscripción en cualquier momento desde su panel privado (WhatsApp + contraseña). La cancelación es inmediata y detiene también el cobro real en Stripe — no se cobra ningún importe adicional tras cancelar.</p>
+        <p><strong>Responsabilidad:</strong> Gremio es un directorio de contacto. No verifica la calidad, licencias, seguros ni resultado de los trabajos realizados por los profesionales publicados, y no media en disputas entre cliente y profesional. Cada profesional es responsable de la veracidad de la información que publica.</p>
+        <p><strong>Contenido publicado:</strong> el profesional garantiza que las fotos, descripciones y precios que publica son reales y de su titularidad o con permiso de uso, y se compromete a no publicar contenido falso, engañoso o que infrinja derechos de terceros.</p>
+      </>
+    ),
+  },
+  cookies: {
+    title: "Política de cookies",
+    body: (
+      <>
+        <p>Este sitio usa un número mínimo de cookies y tecnologías similares, estrictamente necesarias para su funcionamiento:</p>
+        <ul className="list-disc pl-5 flex flex-col gap-1">
+          <li>Cookies técnicas propias de Stripe durante el proceso de pago, necesarias para procesar la suscripción de forma segura.</li>
+          <li>No usamos cookies de publicidad ni de seguimiento con fines de marketing.</li>
+          <li>No usamos Google Analytics ni herramientas similares de terceros en este momento.</li>
+        </ul>
+        <p>Al no usar cookies no esenciales, no es necesario un banner de consentimiento adicional para las cookies técnicas — pero si en el futuro se añaden herramientas de analítica o marketing, esta política se actualizará y se pedirá el consentimiento correspondiente.</p>
+      </>
+    ),
+  },
+};
 
-  const current = pages[page] || pages.aviso;
+function LegalPage({ page, onBack }) {
+  const current = LEGAL_CONTENT[page] || LEGAL_CONTENT.aviso;
 
   return (
     <main className="max-w-2xl mx-auto px-5 pb-16 pt-12">
@@ -1748,15 +1748,18 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
     name: "", phone: "", email: "", password: "", category: CATEGORIES[0].id, description: "", price: "", zone: "",
     urgent24h: false,
     logo: null, photos: [],
+    website: "", // campo trampa anti-bots: invisible para personas, si llega relleno se rechaza
   });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(null);
   const [created, setCreated] = useState(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [legalModal, setLegalModal] = useState(null);
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
   const passwordOk = form.password.length >= 6;
-  const ready = form.name && form.phone && emailOk && passwordOk && form.description && form.price && form.zone;
+  const ready = form.name && form.phone && emailOk && passwordOk && form.description && form.price && form.zone && acceptedTerms;
 
   if (created) {
     return <PreviewStep pro={created} onDone={onDone} />;
@@ -1889,6 +1892,36 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
         <PhotosUploader value={form.photos} onChange={set("photos")} />
       </div>
 
+      {/* Campo trampa anti-bots: invisible para una persona, si un bot lo
+          rellena automáticamente, el servidor rechaza la petición. */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
+        <input
+          tabIndex={-1}
+          autoComplete="off"
+          value={form.website}
+          onChange={(e) => set("website")(e.target.value)}
+        />
+      </div>
+
+      <label className="flex items-start gap-2.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={(e) => setAcceptedTerms(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0"
+        />
+        <span className="text-xs" style={{ color: "#374151" }}>
+          He leído y acepto los{" "}
+          <button type="button" onClick={() => setLegalModal("terminos")} className="underline font-semibold">
+            Términos y condiciones
+          </button>{" "}
+          y la{" "}
+          <button type="button" onClick={() => setLegalModal("privacidad")} className="underline font-semibold">
+            Política de privacidad
+          </button>.
+        </span>
+      </label>
+
       {formError && (
         <p className="text-[12px] font-semibold" style={{ color: "#DC2626" }}>⚠️ {formError}</p>
       )}
@@ -1917,6 +1950,20 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
       >
         {saving ? <Loader2 size={15} className="animate-spin" /> : null} Continuar <ArrowUpRight size={15} strokeWidth={3} />
       </button>
+
+      {legalModal && (
+        <div className="fixed inset-0 flex items-center justify-center p-5 z-50" style={{ background: "rgba(0,0,0,0.5)" }}>
+          <div className="rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6" style={{ background: BG }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg" style={{ fontFamily: "Archivo Black" }}>{LEGAL_CONTENT[legalModal].title}</h2>
+              <button onClick={() => setLegalModal(null)}><X size={18} color={MUTED} /></button>
+            </div>
+            <div className="flex flex-col gap-3 text-sm leading-relaxed" style={{ color: "#374151" }}>
+              {LEGAL_CONTENT[legalModal].body}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
