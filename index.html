@@ -762,12 +762,61 @@ function WhatsAppButton({ pro, full, showTrust }) {
 }
 
 function App() {
-  const [mode, setMode] = useState("cliente");
+  const [mode, setModeState] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("vista") === "profesional" ? "profesional" : "cliente";
+    } catch {
+      return "cliente";
+    }
+  });
   const [professionals, setProfessionals] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [legalPage, setLegalPage] = useState(null);
-  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminOpen, setAdminOpenState] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("panel") === "admin";
+    } catch {
+      return false;
+    }
+  });
+
+  // Guarda solo que ESTÁS en la pantalla del panel (?panel=admin), nunca la
+  // clave en sí — así al recargar sigues ahí, pero tienes que volver a
+  // escribir la clave, que es lo seguro.
+  function setAdminOpen(next) {
+    setAdminOpenState(next);
+    try {
+      const url = new URL(window.location.href);
+      if (next) {
+        url.searchParams.set("panel", "admin");
+      } else {
+        url.searchParams.delete("panel");
+      }
+      window.history.replaceState({}, "", url);
+    } catch {
+      /* silencioso */
+    }
+  }
+
+  // Al cambiar de modo, se guarda también en la URL (?vista=profesional),
+  // así si recargas la página o compartes el enlace, te quedas donde estabas
+  // en vez de volver siempre al inicio.
+  function setMode(next) {
+    setModeState(next);
+    try {
+      const url = new URL(window.location.href);
+      if (next === "profesional") {
+        url.searchParams.set("vista", "profesional");
+      } else {
+        url.searchParams.delete("vista");
+      }
+      window.history.replaceState({}, "", url);
+    } catch {
+      /* silencioso */
+    }
+  }
 
   useEffect(() => {
     try {
@@ -1287,24 +1336,59 @@ function ScrollArrows({ drag }) {
 }
 
 function ClienteView({ professionals, reviews, onAddReview }) {
-  const [selectedCat, setSelectedCat] = useState(null);
-  const [isUrgent, setIsUrgent] = useState(false);
+  const [selectedCat, setSelectedCatState] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get("categoria");
+      return cat && CATEGORIES.some((c) => c.id === cat) ? cat : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isUrgent, setIsUrgentState] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("urgente") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [selectedCity, setSelectedCity] = useState("");
   const [locating, setLocating] = useState(true);
   const [openPro, setOpenPro] = useState(null);
   const catDrag = useDragScroll();
 
-  useEffect(() => {
+  // Guarda la categoría/urgencias elegidas en la URL, para que recargar la
+  // página (o compartir el enlace) te deje justo donde estabas, no en el
+  // inicio.
+  function syncFilterUrl(nextCat, nextUrgent) {
     try {
-      const params = new URLSearchParams(window.location.search);
-      const cat = params.get("categoria");
-      if (cat && CATEGORIES.some((c) => c.id === cat)) {
-        setSelectedCat(cat);
+      const url = new URL(window.location.href);
+      if (nextUrgent) {
+        url.searchParams.set("urgente", "1");
+        url.searchParams.delete("categoria");
+      } else if (nextCat) {
+        url.searchParams.set("categoria", nextCat);
+        url.searchParams.delete("urgente");
+      } else {
+        url.searchParams.delete("categoria");
+        url.searchParams.delete("urgente");
       }
+      window.history.replaceState({}, "", url);
     } catch {
-      /* silencioso: si falla, simplemente no se preselecciona nada */
+      /* silencioso */
     }
-  }, []);
+  }
+  function setSelectedCat(id) {
+    setSelectedCatState(id);
+    syncFilterUrl(id, false);
+  }
+  function setIsUrgent(updater) {
+    setIsUrgentState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      syncFilterUrl(null, next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!navigator.geolocation) {
