@@ -1,5 +1,6 @@
 import { getStore } from "@netlify/blobs";
 import { createHash } from "node:crypto";
+import { checkRateLimit, clientIp } from "../lib/ratelimit.mjs";
 
 function hashPassword(pw) {
   return createHash("sha256").update(String(pw)).digest("hex");
@@ -37,6 +38,14 @@ export default async (req) => {
     return jsonResponse({ error: "JSON inválido" }, 400);
   }
 
+  // Límite estricto: 20 intentos cada 15 minutos por IP, cuenten o no como
+  // clave correcta — así nadie puede probar miles de claves en bucle.
+  const ip = clientIp(req);
+  const withinLimit = await checkRateLimit("admin-auth", ip, 20, 15 * 60 * 1000);
+  if (!withinLimit) {
+    return jsonResponse({ error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo." }, 429);
+  }
+
   // La clave de administrador vive SOLO en Netlify (variable de entorno),
   // nunca en el código del navegador. Sin ella, ninguna acción funciona.
   if (!process.env.ADMIN_SECRET_KEY || body.adminKey !== process.env.ADMIN_SECRET_KEY) {
@@ -68,6 +77,27 @@ export default async (req) => {
     all[idx].passwordHash = hashPassword(body.newPassword);
     await writeAll(proStore, all);
     return jsonResponse({ reset: true });
+  }
+
+  // --- Activar manualmente un anuncio: solo para pagos recibidos FUERA de
+  // Stripe (Bizum directo, transferencia, efectivo...). No crea ninguna
+  // suscripción real en Stripe — el propio administrador es responsable de
+  // llevar el seguimiento de esos cobros y renovarlos o cancelarlos a mano. ---
+  if (body.action === "activate-manual") {
+    const days = Number(body.days) > 0 ? Number(body.days) : 30;
+    const all = await readAll(proStore);
+    const idx = all.findIndex((p) => p.id === body.id);
+    if (idx === -1) return jsonResponse({ error: "No encontrado" }, 404);
+    all[idx].status = "active";
+    all[idx].canceled = false;
+    all[idx].stripeSubscriptionId = null; // no hay suscripción real de Stripe detrás
+    all[idx].nextChargeAt = Date.now() + days * 86400000;
+    all[idx].renewals = [
+      ...(all[idx].renewals || []),
+      { id: `ren_${Date.now()}`, date: Date.now(), manual: true },
+    ];
+    await writeAll(proStore, all);
+    return jsonResponse(publicShape(all[idx]));
   }
 
   if (body.action === "list-reviews") {
