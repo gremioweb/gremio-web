@@ -1378,17 +1378,6 @@ function ClienteView({ professionals, reviews, onAddReview }) {
       /* silencioso */
     }
   }
-  function setSelectedCat(id) {
-    setSelectedCatState(id);
-    syncFilterUrl(id, false);
-  }
-  function setIsUrgent(updater) {
-    setIsUrgentState((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      syncFilterUrl(null, next);
-      return next;
-    });
-  }
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -1435,8 +1424,9 @@ function ClienteView({ professionals, reviews, onAddReview }) {
     : [];
 
   function pickCategory(id) {
-    setIsUrgent(false);
-    setSelectedCat(id);
+    setIsUrgentState(false);
+    setSelectedCatState(id);
+    syncFilterUrl(id, false);
   }
 
   return (
@@ -1473,7 +1463,12 @@ function ClienteView({ professionals, reviews, onAddReview }) {
 
       <div className="flex items-center gap-2 mb-3">
         <button
-          onClick={() => { setIsUrgent((v) => !v); setSelectedCat(null); }}
+          onClick={() => {
+            const next = !isUrgent;
+            setIsUrgentState(next);
+            setSelectedCatState(null);
+            syncFilterUrl(null, next);
+          }}
           className="shrink-0 flex items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-wide transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           style={{
             borderColor: isUrgent ? "#DC2626" : "#FCA5A5",
