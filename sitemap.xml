@@ -81,6 +81,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://gremioprofesional.netlify.app/sociosanitario.html</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://gremioprofesional.netlify.app/sobre-nosotros.html</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
