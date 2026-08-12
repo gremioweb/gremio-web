@@ -768,6 +768,18 @@ function App() {
   const [adminOpen, setAdminOpen] = useState(false);
 
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const legal = params.get("legal");
+      if (legal && LEGAL_CONTENT[legal]) {
+        setLegalPage(legal);
+      }
+    } catch {
+      /* silencioso */
+    }
+  }, []);
+
+  useEffect(() => {
     (async () => {
       const [pros, revs] = await Promise.all([fetchProfessionals(), fetchReviews()]);
       setProfessionals(pros);
@@ -821,8 +833,18 @@ function App() {
 function Footer({ onNavigateLegal, onOpenAdmin }) {
   return (
     <footer className="max-w-5xl mx-auto px-5 py-10 mt-10" style={{ borderTop: `1px solid ${BORDER}` }}>
+      <p className="text-[11px] font-bold uppercase tracking-wide mb-3 text-center" style={{ color: DIM, fontFamily: "IBM Plex Mono" }}>
+        Servicios por categoría
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs mb-8" style={{ color: MUTED }}>
+        {CATEGORIES.map((c) => (
+          <a key={c.id} href={`/${c.id}.html`} className="hover:underline">{c.label}</a>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs" style={{ color: MUTED }}>
         <span style={{ fontFamily: "Archivo Black" }} className="uppercase" >Gremio</span>
+        <a href="/sobre-nosotros.html" className="hover:underline">Sobre nosotros</a>
+        <a href="/preguntas-frecuentes.html" className="hover:underline">Preguntas frecuentes</a>
         <button onClick={() => onNavigateLegal("aviso")} className="hover:underline">Aviso legal</button>
         <button onClick={() => onNavigateLegal("privacidad")} className="hover:underline">Privacidad</button>
         <button onClick={() => onNavigateLegal("terminos")} className="hover:underline">Términos y condiciones</button>
@@ -1269,6 +1291,18 @@ function ClienteView({ professionals, reviews, onAddReview }) {
   const [locating, setLocating] = useState(true);
   const [openPro, setOpenPro] = useState(null);
   const catDrag = useDragScroll();
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get("categoria");
+      if (cat && CATEGORIES.some((c) => c.id === cat)) {
+        setSelectedCat(cat);
+      }
+    } catch {
+      /* silencioso: si falla, simplemente no se preselecciona nada */
+    }
+  }, []);
 
   useEffect(() => {
     if (!navigator.geolocation) {
