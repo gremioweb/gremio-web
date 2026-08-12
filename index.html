@@ -949,6 +949,25 @@ function AdminPanel({ onBack }) {
     }
   }
 
+  async function activateManual(p) {
+    const input = window.prompt(
+      `Vas a activar el anuncio de "${p.name}" manualmente, SIN pasar por Stripe (por ejemplo, porque te ha pagado por Bizum directo). Tú te encargas de llevar el seguimiento de ese cobro.\n\n¿Por cuántos días lo activas?`,
+      "30"
+    );
+    if (input === null) return;
+    const days = Number(input);
+    if (!days || days <= 0) {
+      setError("Introduce un número de días válido.");
+      return;
+    }
+    try {
+      const entry = await adminCall("activate-manual", { id: p.id, days });
+      setPros((prev) => prev.map((pro) => (pro.id === p.id ? entry : pro)));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function deleteReview(id) {
     if (!window.confirm("¿Eliminar esta reseña?")) return;
     try {
@@ -1025,6 +1044,13 @@ function AdminPanel({ onBack }) {
                 </p>
               </div>
               <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => activateManual(p)}
+                  className="text-[11px] font-bold px-3 py-1.5 rounded-full uppercase"
+                  style={{ background: "rgba(13,148,136,0.14)", color: YELLOW, border: `1px solid ${YELLOW}` }}
+                >
+                  Activar manual (Bizum/otro)
+                </button>
                 <button
                   onClick={() => setResetTarget(p)}
                   className="text-[11px] font-bold px-3 py-1.5 rounded-full uppercase"
