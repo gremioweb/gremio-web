@@ -17,10 +17,11 @@ function hashPassword(pw) {
   return createHash("sha256").update(String(pw)).digest("hex");
 }
 
-// Quita el hash de la contraseña antes de devolver datos públicamente
-// (listado del buscador, comprobación de estado, etc.)
+// Quita el hash de la contraseña y las denuncias antes de devolver datos
+// públicamente (listado del buscador, comprobación de estado, etc.) — las
+// denuncias solo las ve el administrador.
 function publicShape(p) {
-  const { passwordHash, ...rest } = p;
+  const { passwordHash, reports, ...rest } = p;
   return rest;
 }
 
@@ -131,6 +132,7 @@ export default async (req) => {
       stripeSubscriptionId: null,
       nextChargeAt: null,
       renewals: [],
+      reports: [],
       createdAt: Date.now(),
     };
     all.push(entry);
@@ -187,6 +189,28 @@ export default async (req) => {
     all[idx].nextChargeAt = null;
     await writeAll(store, all);
     return jsonResponse(publicShape(all[idx]));
+  }
+
+  // --- Denunciar un anuncio: acción pública, cualquier visitante puede
+  // hacerlo, con límite de peticiones para que no se abuse mandando muchas
+  // denuncias falsas seguidas. El resultado nunca se muestra públicamente,
+  // solo lo ve el administrador. ---
+  if (body.action === "report") {
+    const ip = clientIp(req);
+    const withinLimit = await checkRateLimit("pro-report", ip, 5, 60 * 60 * 1000);
+    if (!withinLimit) {
+      return jsonResponse({ error: "Demasiadas denuncias desde esta conexión. Inténtalo más tarde." }, 429);
+    }
+    const idx = all.findIndex((p) => p.id === body.id);
+    if (idx === -1) return jsonResponse({ error: "No encontrado" }, 404);
+    if (!Array.isArray(all[idx].reports)) all[idx].reports = [];
+    all[idx].reports.push({
+      id: `rep_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      reason: String(body.reason || "").slice(0, 400),
+      date: Date.now(),
+    });
+    await writeAll(store, all);
+    return jsonResponse({ reported: true });
   }
 
   return jsonResponse({ error: "Acción no reconocida" }, 400);

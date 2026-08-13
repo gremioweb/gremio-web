@@ -100,6 +100,16 @@ export default async (req) => {
     return jsonResponse(publicShape(all[idx]));
   }
 
+  // --- Marcar las denuncias de un anuncio como ya revisadas (las borra) ---
+  if (body.action === "clear-reports") {
+    const all = await readAll(proStore);
+    const idx = all.findIndex((p) => p.id === body.id);
+    if (idx === -1) return jsonResponse({ error: "No encontrado" }, 404);
+    all[idx].reports = [];
+    await writeAll(proStore, all);
+    return jsonResponse(publicShape(all[idx]));
+  }
+
   if (body.action === "list-reviews") {
     const raw = await revStore.get("all", { type: "json" });
     return jsonResponse(Array.isArray(raw) ? raw : []);
