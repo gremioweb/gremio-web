@@ -2694,7 +2694,9 @@ function PanelView({ onLookup, onToggleCancel, onRefresh }) {
                 >
                   Stripe
                 </span>
-                <p className="text-sm font-semibold">{MONTHLY_PRICE}€/mes</p>
+                <p className="text-sm font-semibold">
+                  {pro.status === "trial_denied" ? `${MONTHLY_PRICE}€/mes` : `0€ ahora · luego ${MONTHLY_PRICE}€/mes`}
+                </p>
               </div>
               {pro.status === "active" && !pro.canceled && (
                 <div className="text-right">
