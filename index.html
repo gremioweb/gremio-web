@@ -211,6 +211,9 @@ async function uploadPhoto(dataUrl) {
   const data = await apiPost("/.netlify/functions/photos", { dataUrl });
   return data.url;
 }
+async function reportProfessional(id, reason) {
+  return apiPost("/.netlify/functions/professionals", { action: "report", id, reason });
+}
 
 async function createProfessional(form) {
   return apiPost("/.netlify/functions/professionals", { action: "create", ...form });
@@ -299,6 +302,93 @@ function waNumber(phone) {
 // Compara texto ignorando tildes, mayúsculas y espacios sobrantes, para que
 // "malaga", "Málaga" y "MÁLAGA " se traten como lo mismo en cualquier
 // búsqueda o filtro de la web.
+// Google Tag Manager: solo se carga si el usuario ha aceptado las cookies
+// de análisis. Nunca se carga por defecto — eso es lo que exige la
+// normativa (RGPD/LSSICE) para cookies no esenciales.
+const GTM_ID = "GTM-MNPRJ88G";
+function loadGTM() {
+  if (window.__gtmLoaded) return;
+  window.__gtmLoaded = true;
+  (function (w, d, s, l, i) {
+    w[l] = w[l] || [];
+    w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+    var f = d.getElementsByTagName(s)[0],
+      j = d.createElement(s),
+      dl = l != "dataLayer" ? "&l=" + l : "";
+    j.async = true;
+    j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+    f.parentNode.insertBefore(j, f);
+  })(window, document, "script", "dataLayer", GTM_ID);
+
+  var ns = document.createElement("noscript");
+  var iframe = document.createElement("iframe");
+  iframe.src = "https://www.googletagmanager.com/ns.html?id=" + GTM_ID;
+  iframe.height = "0";
+  iframe.width = "0";
+  iframe.style.display = "none";
+  iframe.style.visibility = "hidden";
+  ns.appendChild(iframe);
+  document.body.appendChild(ns);
+}
+
+function CookieBanner({ onOpenCookiesPage }) {
+  const [choice, setChoice] = useState(() => {
+    try {
+      return localStorage.getItem("gremio_cookie_consent") || null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (choice === "accepted") loadGTM();
+  }, [choice]);
+
+  if (choice) return null;
+
+  function decide(value) {
+    try {
+      localStorage.setItem("gremio_cookie_consent", value);
+    } catch {
+      /* silencioso */
+    }
+    setChoice(value);
+  }
+
+  return (
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50 p-4"
+      style={{ background: INK, borderTop: `1px solid ${BORDER}` }}
+    >
+      <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs" style={{ color: "#D1D5DB" }}>
+          Usamos cookies de análisis (Google) para entender cómo se usa la web y mejorarla. Puedes aceptarlas o
+          rechazarlas — la web funciona igual en ambos casos.{" "}
+          <button onClick={onOpenCookiesPage} className="underline" style={{ color: "#9CA3AF" }}>
+            Más info
+          </button>
+        </p>
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={() => decide("rejected")}
+            className="text-[11px] font-bold px-4 py-2 rounded-full uppercase"
+            style={{ color: "#D1D5DB", border: "1px solid #4B5563" }}
+          >
+            Rechazar
+          </button>
+          <button
+            onClick={() => decide("accepted")}
+            className="text-[11px] font-bold px-4 py-2 rounded-full uppercase"
+            style={{ background: "#2563EB", color: "#FFFFFF" }}
+          >
+            Aceptar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function normalizeText(s) {
   return String(s || "")
     .normalize("NFD")
@@ -609,9 +699,51 @@ function ProfileSheet({ pro, reviews, onAddReview, onClose }) {
             </div>
             <ReviewForm onSubmit={(review) => onAddReview(pro.id, review)} />
           </div>
+
+          <ReportLink proId={pro.id} />
         </div>
       </div>
     </div>
+  );
+}
+
+function ReportLink({ proId }) {
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  async function handleReport() {
+    const reason = window.prompt(
+      "¿Por qué quieres denunciar este anuncio? (por ejemplo: información falsa, no responde, suplantación...)"
+    );
+    if (reason === null || !reason.trim()) return;
+    setSending(true);
+    try {
+      await reportProfessional(proId, reason.trim());
+      setSent(true);
+    } catch {
+      alert("No se pudo enviar la denuncia ahora mismo. Inténtalo más tarde.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <p className="text-center text-[11px]" style={{ color: MUTED }}>
+        Gracias, hemos recibido tu denuncia y la revisaremos.
+      </p>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleReport}
+      disabled={sending}
+      className="text-center text-[11px] underline mx-auto disabled:opacity-50"
+      style={{ color: DIM }}
+    >
+      {sending ? "Enviando…" : "Denunciar este anuncio"}
+    </button>
   );
 }
 
@@ -877,6 +1009,7 @@ function App() {
         <ProfesionalView professionals={professionals} setProfessionals={setProfessionals} />
       )}
       <Footer onNavigateLegal={setLegalPage} onOpenAdmin={() => setAdminOpen(true)} />
+      <CookieBanner onOpenCookiesPage={() => setLegalPage("cookies")} />
     </div>
   );
 }
@@ -951,13 +1084,13 @@ const LEGAL_CONTENT = {
     title: "Política de cookies",
     body: (
       <>
-        <p>Este sitio usa un número mínimo de cookies y tecnologías similares, estrictamente necesarias para su funcionamiento:</p>
+        <p>Este sitio usa los siguientes tipos de cookies y tecnologías similares:</p>
         <ul className="list-disc pl-5 flex flex-col gap-1">
-          <li>Cookies técnicas propias de Stripe durante el proceso de pago, necesarias para procesar la suscripción de forma segura.</li>
-          <li>No usamos cookies de publicidad ni de seguimiento con fines de marketing.</li>
-          <li>No usamos Google Analytics ni herramientas similares de terceros en este momento.</li>
+          <li><strong>Cookies técnicas necesarias:</strong> propias de Stripe durante el proceso de pago, imprescindibles para procesar la suscripción de forma segura. Estas no requieren consentimiento porque son necesarias para el funcionamiento del sitio.</li>
+          <li><strong>Cookies de análisis (Google Tag Manager):</strong> usadas para entender cómo se usa la web (páginas visitadas, tiempo de navegación) y mejorarla. <strong>Solo se activan si das tu consentimiento expreso</strong> en el aviso que aparece al entrar en la web — mientras no aceptes, no se cargan ni se instalan.</li>
+          <li>No usamos cookies de publicidad ni de seguimiento con fines de marketing de terceros.</li>
         </ul>
-        <p>Al no usar cookies no esenciales, no es necesario un banner de consentimiento adicional para las cookies técnicas — pero si en el futuro se añaden herramientas de analítica o marketing, esta política se actualizará y se pedirá el consentimiento correspondiente.</p>
+        <p>Puedes cambiar tu decisión sobre las cookies de análisis en cualquier momento borrando los datos de navegación de este sitio en tu navegador, lo que hará que el aviso de cookies vuelva a aparecer.</p>
       </>
     ),
   },
@@ -1046,6 +1179,20 @@ function AdminPanel({ onBack }) {
     }
   }
 
+  function viewReports(p) {
+    const list = p.reports || [];
+    const text = list
+      .map((r, i) => `${i + 1}. ${new Date(r.date).toLocaleDateString("es-ES")} — ${r.reason}`)
+      .join("\n");
+    const clear = window.confirm(
+      `Denuncias de "${p.name}" (${list.length}):\n\n${text}\n\n¿Marcar como revisadas y borrarlas?`
+    );
+    if (!clear) return;
+    adminCall("clear-reports", { id: p.id })
+      .then((entry) => setPros((prev) => prev.map((pro) => (pro.id === p.id ? entry : pro))))
+      .catch((err) => setError(err.message));
+  }
+
   async function deleteReview(id) {
     if (!window.confirm("¿Eliminar esta reseña?")) return;
     try {
@@ -1114,9 +1261,21 @@ function AdminPanel({ onBack }) {
         <div className="flex flex-col gap-3">
           {pros.length === 0 && <p className="text-sm" style={{ color: MUTED }}>No hay profesionales todavía.</p>}
           {pros.map((p) => (
-            <div key={p.id} className="rounded-xl border-2 p-3.5 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: BORDER, background: SURFACE }}>
+            <div key={p.id} className="rounded-xl border-2 p-3.5 flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: (p.reports?.length > 0) ? "#DC2626" : BORDER, background: SURFACE }}>
               <div className="min-w-0">
-                <p className="text-sm font-bold truncate">{p.name} <span className="font-normal" style={{ color: DIM }}>· {catInfo(p.category).label} · {p.zone}</span></p>
+                <p className="text-sm font-bold truncate flex items-center gap-2">
+                  {p.name}
+                  {p.reports?.length > 0 && (
+                    <button
+                      onClick={() => viewReports(p)}
+                      className="text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase shrink-0"
+                      style={{ background: "#DC2626", color: "#FFFFFF" }}
+                    >
+                      ⚠ {p.reports.length} denuncia{p.reports.length > 1 ? "s" : ""}
+                    </button>
+                  )}
+                  <span className="font-normal" style={{ color: DIM }}>· {catInfo(p.category).label} · {p.zone}</span>
+                </p>
                 <p className="text-xs mt-0.5" style={{ color: MUTED }}>
                   {p.phone} · {p.email} · estado: <strong>{p.status}</strong>{p.canceled ? " · cancelado" : ""}
                 </p>
@@ -1353,6 +1512,7 @@ function ClienteView({ professionals, reviews, onAddReview }) {
     }
   });
   const [selectedCity, setSelectedCity] = useState("");
+  const [sortBy, setSortBy] = useState("relevancia");
   const [locating, setLocating] = useState(true);
   const [openPro, setOpenPro] = useState(null);
   const catDrag = useDragScroll();
@@ -1422,6 +1582,18 @@ function ClienteView({ professionals, reviews, onAddReview }) {
           (!selectedCity || normalizeText(p.zone).includes(normalizeText(selectedCity)))
       )
     : [];
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "valoracion") {
+      const ra = avgRating(reviews.filter((r) => r.professionalId === a.id));
+      const rb = avgRating(reviews.filter((r) => r.professionalId === b.id));
+      return rb - ra;
+    }
+    if (sortBy === "recientes") {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    }
+    return 0; // relevancia: orden original
+  });
 
   function pickCategory(id) {
     setIsUrgentState(false);
@@ -1538,8 +1710,34 @@ function ClienteView({ professionals, reviews, onAddReview }) {
           />
         )}
 
+        {(isUrgent || selectedCat) && filtered.length > 1 && (
+          <div className="flex items-center gap-2 mb-4">
+            <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: DIM }}>Ordenar por</p>
+            <div className="flex gap-1.5">
+              {[
+                { id: "relevancia", label: "Relevancia" },
+                { id: "valoracion", label: "Mejor valorados" },
+                { id: "recientes", label: "Más recientes" },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setSortBy(opt.id)}
+                  className="text-[11px] font-bold px-3 py-1.5 rounded-full uppercase transition-colors"
+                  style={
+                    sortBy === opt.id
+                      ? { background: "#2563EB", color: "#FFFFFF" }
+                      : { background: SURFACE_2, color: MUTED, border: `1px solid ${BORDER}` }
+                  }
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid sm:grid-cols-2 gap-4">
-          {filtered.map((pro) => (
+          {sorted.map((pro) => (
             <div
               key={pro.id}
               onClick={() => setOpenPro(pro)}
