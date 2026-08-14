@@ -1402,10 +1402,10 @@ function Header({ mode, setMode }) {
             </button>
             <button
               onClick={() => setMode("profesional")}
-              className="flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide px-3 py-1 rounded-full"
-              style={{ background: YELLOW, color: INK }}
+              className="flex items-center gap-1.5 text-sm font-extrabold uppercase tracking-wide px-4 py-2 rounded-full"
+              style={{ background: "#FACC15", color: INK }}
             >
-              <Tag size={11} strokeWidth={2.5} /> Gratis
+              🎁 Gratis
             </button>
           </div>
         </div>
@@ -2161,11 +2161,7 @@ function PublishForm({ onCreatePending, onCheckStatus, onDone }) {
         <p className="text-sm leading-relaxed" style={{ color: "#374151" }}>
           Los clientes te escribirán directamente por{" "}
           <span style={{ color: WHATSAPP, fontWeight: 700 }}>WhatsApp</span>, así que tu número tiene
-          que ser real. En el siguiente paso activas tu{" "}
-          <span style={{ color: YELLOW, fontFamily: "IBM Plex Mono", fontWeight: 700 }}>
-            prueba gratuita de {TRIAL_DAYS} días
-          </span>{" "}
-          con Stripe — 0€ ahora, luego {MONTHLY_PRICE}€/mes.
+          que ser real.
         </p>
       </TicketStub>
 
