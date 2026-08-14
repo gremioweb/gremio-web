@@ -121,7 +121,7 @@ export default async (req) => {
       phone: String(body.phone).slice(0, 20),
       email,
       category: String(body.category).slice(0, 60),
-      description: String(body.description).slice(0, 800),
+      description: String(body.description).slice(0, 300),
       price: String(body.price).slice(0, 60),
       zone: String(body.zone).slice(0, 120),
       urgent24h: body.urgent24h === true,
@@ -187,6 +187,37 @@ export default async (req) => {
     all[idx].canceled = false;
     all[idx].stripeSubscriptionId = null;
     all[idx].nextChargeAt = null;
+    await writeAll(store, all);
+    return jsonResponse(publicShape(all[idx]));
+  }
+
+  // --- Editar los datos de un anuncio ya publicado: requiere la contraseña
+  // exacta de ESE anuncio, igual que "cancel". No permite tocar el
+  // teléfono, el email, la contraseña ni el estado de pago desde aquí —
+  // solo los datos visibles del anuncio (nombre, categoría, zona, precio,
+  // descripción y urgencia 24h). ---
+  if (body.action === "update") {
+    const ip = clientIp(req);
+    const withinLimit = await checkRateLimit("pro-update", ip, 20, 15 * 60 * 1000);
+    if (!withinLimit) {
+      return jsonResponse({ error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo." }, 429);
+    }
+    const hash = hashPassword(body.password || "");
+    const idx = all.findIndex((p) => p.id === body.id && p.passwordHash === hash);
+    if (idx === -1) return jsonResponse({ error: "No encontrado o contraseña incorrecta" }, 404);
+
+    const required = ["name", "category", "description", "price", "zone"];
+    for (const field of required) {
+      if (!body[field]) return jsonResponse({ error: `Falta el campo ${field}` }, 400);
+    }
+
+    all[idx].name = String(body.name).slice(0, 120);
+    all[idx].category = String(body.category).slice(0, 60);
+    all[idx].zone = String(body.zone).slice(0, 120);
+    all[idx].price = String(body.price).slice(0, 60);
+    all[idx].description = String(body.description).slice(0, 300);
+    all[idx].urgent24h = body.urgent24h === true;
+
     await writeAll(store, all);
     return jsonResponse(publicShape(all[idx]));
   }
